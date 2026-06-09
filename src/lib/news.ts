@@ -1,23 +1,58 @@
 // News wire via OFFICIAL RSS feeds only (publisher-approved syndication).
 // We never scrape HTML — headline + outbound link only. Each item becomes a
-// Signal, with the referenced nation resolved so it can be linked to markets.
+// Signal, with nations/players resolved via roster index + team aliases.
+// Stories older than 7 days are dropped. JSON APIs merged from news-apis.ts.
 
-import type { Signal, SignalKind } from "./types";
-import { resolveTeam, TEAMS } from "./worldcup";
+import type { Signal } from "./types";
+import {
+  getRosterIndex,
+  headlineIsRelevant,
+  NEWS_MAX_AGE_MS,
+  type RosterIndex,
+} from "./roster";
+import { rawToSignal } from "./news-build";
+import { fetchApiNewsSignals } from "./news-apis";
+import { resolveTeam } from "./worldcup";
 
-type RssFeed = { id: string; source: string; url: string; limit: number };
+type RssFeed = {
+  id: string;
+  source: string;
+  url: string;
+  limit: number;
+  /** Feed is already scoped (WC tag or single nation) — skip broad relevance filter. */
+  scoped?: boolean;
+  /** Auto-tag this nation on every item from the feed. */
+  teamCode?: string;
+};
 
 export const NEWS_FEEDS: RssFeed[] = [
-  { id: "espn-soccer", source: "ESPN", url: "https://www.espn.com/espn/rss/soccer/news", limit: 14 },
-  { id: "bbc-football", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/rss.xml", limit: 12 },
-  { id: "guardian-wc", source: "Guardian", url: "https://www.theguardian.com/football/world-cup-2026/rss", limit: 12 },
-  { id: "marca-futbol", source: "Marca", url: "https://www.marca.com/rss/futbol.xml", limit: 10 },
+  // — existing —
+  { id: "espn-soccer", source: "ESPN", url: "https://www.espn.com/espn/rss/soccer/news", limit: 20 },
+  { id: "bbc-football", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/rss.xml", limit: 18 },
+  { id: "guardian-wc", source: "Guardian", url: "https://www.theguardian.com/football/world-cup-2026/rss", limit: 18, scoped: true },
+  { id: "marca-futbol", source: "Marca", url: "https://www.marca.com/rss/futbol.xml", limit: 16 },
+  // — expanded —
+  { id: "guardian-football", source: "Guardian", url: "https://www.theguardian.com/football/rss", limit: 16 },
+  { id: "sky-football", source: "Sky Sports", url: "https://www.skysports.com/rss/12040", limit: 18 },
+  { id: "fourfourtwo", source: "FourFourTwo", url: "https://www.fourfourtwo.com/feeds/all", limit: 14 },
+  { id: "independent-football", source: "Independent", url: "https://www.independent.co.uk/sport/football/rss", limit: 14 },
+  { id: "cbs-soccer", source: "CBS Sports", url: "https://www.cbssports.com/rss/headlines/soccer/", limit: 14 },
+  { id: "sportsnet", source: "Sportsnet", url: "https://www.sportsnet.ca/feed/", limit: 12 },
+  // — per-nation BBC feeds (host nations + favorites) —
+  { id: "bbc-usa", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/usa/rss.xml", limit: 10, scoped: true, teamCode: "USA" },
+  { id: "bbc-mexico", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/mexico/rss.xml", limit: 10, scoped: true, teamCode: "MEX" },
+  { id: "bbc-england", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/england/rss.xml", limit: 10, scoped: true, teamCode: "ENG" },
+  { id: "bbc-france", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/france/rss.xml", limit: 10, scoped: true, teamCode: "FRA" },
+  { id: "bbc-germany", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/germany/rss.xml", limit: 10, scoped: true, teamCode: "GER" },
+  { id: "bbc-spain", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/spain/rss.xml", limit: 10, scoped: true, teamCode: "ESP" },
+  { id: "bbc-brazil", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/brazil/rss.xml", limit: 10, scoped: true, teamCode: "BRA" },
+  { id: "bbc-argentina", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/argentina/rss.xml", limit: 10, scoped: true, teamCode: "ARG" },
+  { id: "bbc-netherlands", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/netherlands/rss.xml", limit: 10, scoped: true, teamCode: "NED" },
+  { id: "bbc-portugal", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/portugal/rss.xml", limit: 10, scoped: true, teamCode: "POR" },
 ];
 
 const UA = "WC-Edge-Terminal/1.0 (RSS reader)";
-
-const WC_KEYWORDS =
-  /world cup|world-cup|fifa|mundial|usmnt|2026|selecci[oó]n|group stage|golden boot|copa del mundo|qualif/i;
+const GLOBAL_CAP = 120;
 
 function stripTags(s: string): string {
   return s.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
@@ -56,94 +91,71 @@ function parseDate(raw: string): number {
   return Number.isFinite(t) ? t : Date.now();
 }
 
-/** Map a headline to a signal kind + severity + price-impact hint. */
-function classify(headline: string): { kind: SignalKind; severity: 1 | 2 | 3; impact?: -1 | 1 } {
-  const h = headline.toLowerCase();
-  if (/(ruled out|out for|sidelined|injur|will miss|baja|lesion|doubtful|muscle knock|picked up a knock|surgery)/.test(h))
-    return { kind: "injury", severity: 3, impact: -1 };
-  if (/(suspend|banned|red card|sancionado)/.test(h))
-    return { kind: "suspension", severity: 3, impact: -1 };
-  if (/(lineup|line-up|starting xi|squad named|called up|convocator|alineaci)/.test(h))
-    return { kind: "lineup", severity: 2 };
-  if (/(returns|fit again|back in training|recovered|cleared to play)/.test(h))
-    return { kind: "injury", severity: 2, impact: 1 };
-  return { kind: "news", severity: 1 };
+function isFresh(t: number): boolean {
+  return Date.now() - t <= NEWS_MAX_AGE_MS;
 }
 
-/** Detect every nation mentioned in a headline. */
-function detectTeams(headline: string): string[] {
-  const h = ` ${headline.toLowerCase()} `;
-  const codes = new Set<string>();
-  for (const [name, meta] of Object.entries(TEAMS)) {
-    if (h.includes(` ${name} `) || h.includes(`${name},`) || h.includes(`${name}'`)) {
-      codes.add(meta.code);
-    }
-  }
-  return [...codes];
-}
-
-/**
- * Which market/event slugs a team-tagged story plausibly touches. We link to the
- * broad outright + advancement markets; precise per-team linking happens at edge
- * time via the team code, but these slugs make feed→market navigation work.
- */
-function slugsForTeams(teams: string[]): string[] {
-  if (teams.length === 0) return [];
-  return [
-    "world-cup-winner",
-    "world-cup-team-to-advance-to-knockout-stages",
-    "world-cup-nation-to-reach-final",
-  ];
-}
-
-async function fetchFeed(feed: RssFeed): Promise<Signal[]> {
+async function fetchFeed(feed: RssFeed, index: RosterIndex): Promise<Signal[]> {
   const res = await fetch(feed.url, {
     headers: { Accept: "application/rss+xml, application/xml, text/xml, */*", "User-Agent": UA },
     next: { revalidate: 1800 },
   });
   if (!res.ok) throw new Error(`${feed.id}: HTTP ${res.status}`);
   const xml = await res.text();
-  const raw = parseRss(xml).slice(0, feed.limit);
+  const cutoff = Date.now() - NEWS_MAX_AGE_MS;
 
-  return raw
-    .filter((it) => feed.id !== "bbc-football" || WC_KEYWORDS.test(it.title))
-    .map((it): Signal => {
-      const { kind, severity, impact } = classify(it.title);
-      const teams = detectTeams(it.title);
-      return {
-        id: `news_${feed.id}_${it.guid.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40)}`,
-        t: parseDate(it.pubDate),
-        kind,
-        severity,
-        confidence: 0.6,
-        headline: it.title,
-        source: feed.source,
-        url: it.link,
-        entities: { teams },
-        marketSlugs: slugsForTeams(teams),
-        priceImpact: impact ? { direction: impact > 0 ? "up" : "down", estPct: severity * 1.5 } : undefined,
-      };
-    });
+  return parseRss(xml)
+    .slice(0, feed.limit)
+    .map((it) => ({ ...it, t: parseDate(it.pubDate) }))
+    .filter((it) => it.t >= cutoff)
+    .filter((it) => feed.scoped || headlineIsRelevant(it.title, index))
+    .map((it) =>
+      rawToSignal(
+        {
+          id: `news_${feed.id}_${it.guid.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40)}`,
+          title: it.title,
+          url: it.link,
+          t: it.t,
+          source: feed.source,
+          scoped: feed.scoped,
+          teamCode: feed.teamCode,
+        },
+        index,
+      ),
+    );
 }
 
-export async function fetchNewsSignals(): Promise<{ signals: Signal[]; ok: string[]; failed: string[] }> {
-  const results = await Promise.allSettled(NEWS_FEEDS.map(fetchFeed));
+export async function fetchNewsSignals(): Promise<{
+  signals: Signal[];
+  ok: string[];
+  failed: string[];
+  apiOk?: string[];
+  apiFailed?: string[];
+  rosterNote?: string;
+}> {
+  const index = await getRosterIndex();
+  const [rssResults, apiResults] = await Promise.all([
+    Promise.allSettled(NEWS_FEEDS.map((f) => fetchFeed(f, index))),
+    fetchApiNewsSignals(index),
+  ]);
+
   const ok: string[] = [];
   const failed: string[] = [];
-  const merged: Signal[] = [];
+  const merged: Signal[] = [...apiResults.signals];
 
-  results.forEach((r, i) => {
+  rssResults.forEach((r, i) => {
     if (r.status === "fulfilled") {
       ok.push(NEWS_FEEDS[i].id);
       merged.push(...r.value);
     } else {
       failed.push(NEWS_FEEDS[i].id);
+      console.warn(`[news] ${NEWS_FEEDS[i].id}:`, r.reason);
     }
   });
 
-  // Dedupe by normalized headline.
   const seen = new Set<string>();
   const signals = merged
+    .filter((s) => isFresh(s.t))
     .sort((a, b) => b.t - a.t)
     .filter((s) => {
       const key = s.headline.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -151,10 +163,14 @@ export async function fetchNewsSignals(): Promise<{ signals: Signal[]; ok: strin
       seen.add(key);
       return true;
     })
-    .slice(0, 40);
+    .slice(0, GLOBAL_CAP);
 
-  return { signals, ok, failed };
+  const rosterNote =
+    index.playerCount > 0
+      ? `${index.playerCount} players · ${index.teamCount} squads`
+      : "no roster (set FOOTBALL_DATA_API_KEY or API_FOOTBALL_KEY)";
+
+  return { signals, ok, failed, apiOk: apiResults.ok, apiFailed: apiResults.failed, rosterNote };
 }
 
-// re-export for callers that want to resolve a label themselves
 export { resolveTeam };

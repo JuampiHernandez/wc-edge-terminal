@@ -64,10 +64,16 @@ export async function fetchWcFixtures(days = 14): Promise<FdMatch[]> {
   return (data?.matches ?? []).filter((m) => m.status === "TIMED" || m.status === "SCHEDULED");
 }
 
+/** All teams registered for the World Cup competition. */
+export async function fetchWcTeams(): Promise<FdTeam[]> {
+  const data = await fdGet<{ teams: FdTeam[] }>("/competitions/WC/teams", 604_800);
+  return data?.teams ?? [];
+}
+
 /** Full squad for one national team (by football-data team id). */
 export async function fetchTeamSquad(teamId: number): Promise<FdPlayer[]> {
-  const data = await fdGet<{ squad: FdPlayer[] }>(`/teams/${teamId}`, 21_600);
-  return data?.squad ?? [];
+  const data = await fdGet<{ squad: FdPlayer[] }>(`/teams/${teamId}`, 604_800);
+  return (data?.squad ?? []).slice(0, 26);
 }
 
 /** Map football-data TLA (3-letter) to our internal team code. */

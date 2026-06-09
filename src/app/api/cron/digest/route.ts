@@ -1,12 +1,15 @@
-// Daily email digest — call via Vercel Cron or manual trigger.
-// Requires RESEND_API_KEY + CRON_SECRET in env.
+// Daily cron — roster refresh (10 teams) + email digest.
+// Vercel Hobby: one cron/day max. Keep a single entry in vercel.json.
+// Requires CRON_SECRET in Vercel env (Vercel sends it as Authorization header).
 
 import { NextResponse } from "next/server";
 import { listSubscribers } from "@/lib/subscribers";
 import { nationName } from "@/lib/teams-list";
 import { fetchNewsSignals } from "@/lib/news";
+import { refreshRostersBatch, buildIndex } from "@/lib/roster";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 function teamInHeadline(headline: string, code: string, name: string): boolean {
   const h = headline.toLowerCase();
@@ -19,11 +22,32 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  // 1. Incremental roster refresh (default 16 teams/day on Vercel; use ?teams=48 locally).
+  const url = new URL(req.url);
+  const teamLimit = Math.min(48, Math.max(1, Number(url.searchParams.get("teams")) || 16));
+  let roster = { teams: 0, players: 0, ok: false as boolean, refreshed: teamLimit };
+  if (process.env.FOOTBALL_DATA_API_KEY || process.env.API_FOOTBALL_KEY) {
+    try {
+      const stored = await refreshRostersBatch(teamLimit);
+      const idx = buildIndex(stored);
+      roster = { teams: idx.teamCount, players: idx.playerCount, ok: true, refreshed: teamLimit };
+    } catch (e) {
+      console.warn("[cron/digest] roster batch failed:", e);
+    }
+  }
+
+  // 2. Email digest (optional — needs subscribers + Resend).
   const resendKey = process.env.RESEND_API_KEY;
   const from = process.env.DIGEST_FROM_EMAIL ?? "digest@wc-edge.local";
   const subs = await listSubscribers();
+
   if (subs.length === 0) {
-    return NextResponse.json({ ok: true, sent: 0, note: "no subscribers" });
+    return NextResponse.json({
+      ok: true,
+      sent: 0,
+      note: "no subscribers",
+      roster,
+    });
   }
 
   const { signals } = await fetchNewsSignals();
@@ -32,7 +56,11 @@ export async function GET(req: Request) {
 
   for (const sub of subs) {
     const items = signals.filter((s) =>
-      sub.teams.some((code) => teamInHeadline(s.headline, code, nationName(code))),
+      sub.teams.some(
+        (code) =>
+          s.entities.teams?.includes(code) ||
+          teamInHeadline(s.headline, code, nationName(code)),
+      ),
     );
     const lines =
       items.length > 0
@@ -73,6 +101,7 @@ export async function GET(req: Request) {
     sent,
     subscribers: subs.length,
     resend: !!resendKey,
+    roster,
     errors,
   });
 }

@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "cron:daily": "curl -sf -H \"Authorization: Bearer ${CRON_SECRET}\" \"${CRON_URL:-http://localhost:3000}/api/cron/digest\"",
+    "cron:rosters": "curl -sf -H \"Authorization: Bearer ${CRON_SECRET}\" \"${CRON_URL:-http://localhost:3000}/api/cron/digest?teams=48\""
   },
   "dependencies": {
     "next": "16.2.7",

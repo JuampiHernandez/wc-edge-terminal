@@ -41,16 +41,19 @@ export async function GET() {
   signals.push(...lm);
   sources.push({ id: "line-moves", ok: true, note: `${lm.length} moves` });
 
-  // News
+  // News (RSS + JSON APIs)
   if (newsR.status === "fulfilled") {
     signals.push(...newsR.value.signals);
+    const apiNote = newsR.value.apiOk?.length
+      ? ` · api: ${newsR.value.apiOk.join(",")}`
+      : "";
     sources.push({
-      id: "news-rss",
-      ok: newsR.value.ok.length > 0,
-      note: `feeds ok: ${newsR.value.ok.join(", ") || "none"}`,
+      id: "news",
+      ok: newsR.value.ok.length > 0 || (newsR.value.apiOk?.length ?? 0) > 0,
+      note: `${newsR.value.ok.length} rss${apiNote} · ${newsR.value.rosterNote ?? ""}`,
     });
   } else {
-    sources.push({ id: "news-rss", ok: false });
+    sources.push({ id: "news", ok: false });
   }
 
   // Weather
