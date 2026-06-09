@@ -14,11 +14,20 @@ export function Header({ live }: { live: boolean }) {
     <header className="shrink-0 border-b border-border px-4 py-2.5 flex items-center gap-3 bg-panel">
       <a href="/" className="flex items-center gap-2 shrink-0" aria-label="World Cup Terminal">
         <Image
-          src="/brand/wordmark.jpg"
+          src="/brand/icon.png"
+          alt=""
+          width={28}
+          height={28}
+          className="h-7 w-7 shrink-0"
+          priority
+          aria-hidden
+        />
+        <Image
+          src="/brand/wordmark.png"
           alt="World Cup Terminal"
-          width={120}
-          height={32}
-          className="h-7 w-auto"
+          width={160}
+          height={28}
+          className="h-5 sm:h-6 w-auto"
           priority
         />
       </a>

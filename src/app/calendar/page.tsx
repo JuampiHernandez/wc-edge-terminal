@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { LocaleToggle } from "@/components/LocaleToggle";
 import { useLocale } from "@/components/LocaleProvider";
 import { WC_NATIONS } from "@/lib/teams-list";
@@ -21,17 +21,23 @@ export default function CalendarPage() {
     return `/api/calendar?teams=${follows.sort().join(",")}`;
   }, [mode, follows]);
 
+  const host = useSyncExternalStore(
+    () => () => {},
+    () => window.location.host,
+    () => "",
+  );
+
   const links = useMemo(() => {
-    if (typeof window === "undefined" || !icsPath) {
+    if (!host || !icsPath) {
       return { google: "#", webcal: "#" };
     }
-    const host = window.location.host;
     const webcal = `webcal://${host}${icsPath}`;
+    const googleCid = encodeURIComponent(webcal);
     return {
-      google: `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}`,
+      google: `https://accounts.google.com/AccountChooser?continue=${encodeURIComponent(`https://calendar.google.com/calendar/r?cid=${googleCid}`)}`,
       webcal,
     };
-  }, [icsPath]);
+  }, [host, icsPath]);
 
   const canExport = mode === "all" || follows.length > 0;
 
@@ -66,11 +72,11 @@ export default function CalendarPage() {
         </div>
 
         <Image
-          src="/brand/icon.jpg"
+          src="/brand/icon.png"
           alt="World Cup Terminal"
           width={64}
           height={64}
-          className="mx-auto mb-3 h-16 w-16 rounded-full"
+          className="mx-auto mb-3 h-16 w-16"
         />
         <h1 className="text-xl font-semibold tracking-tight">{t.calendar.title}</h1>
         <p className="text-[12px] text-subtle mt-2 mb-6">{t.calendar.subtitle}</p>
