@@ -1,0 +1,18 @@
+{
+  "headers": [
+    {
+      "source": "/world_cup_2026.ics",
+      "headers": [
+        { "key": "Content-Type", "value": "text/calendar; charset=utf-8" },
+        { "key": "Content-Disposition", "value": "inline; filename=\"world_cup_2026.ics\"" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/digest",
+      "schedule": "0 20 * * *"
+    }
+  ]
+}
