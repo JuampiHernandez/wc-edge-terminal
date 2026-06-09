@@ -39,7 +39,7 @@ export async function GET(req: Request) {
         ? items.map((s) => `• ${s.headline} (${s.source})`).join("\n")
         : "No major headlines today for your teams.";
 
-    const body = `WC Edge — daily digest for ${sub.teams.map(nationName).join(", ")}\n\n${lines}\n\n— wc-edge terminal`;
+    const body = `World Cup Terminal — daily digest for ${sub.teams.map(nationName).join(", ")}\n\n${lines}\n\n— World Cup Terminal`;
 
     if (!resendKey) {
       console.log(`[digest] ${sub.email}:\n${body}`);
@@ -57,7 +57,7 @@ export async function GET(req: Request) {
         body: JSON.stringify({
           from,
           to: sub.email,
-          subject: `WC Edge · ${sub.teams.map(nationName).join(", ")} — daily update`,
+          subject: `World Cup Terminal · ${sub.teams.map(nationName).join(", ")} — daily update`,
           text: body,
         }),
       });

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { LocaleToggle } from "@/components/LocaleToggle";
 import { useLocale } from "@/components/LocaleProvider";
@@ -11,8 +12,15 @@ export function Header({ live }: { live: boolean }) {
 
   return (
     <header className="shrink-0 border-b border-border px-4 py-2.5 flex items-center gap-3 bg-panel">
-      <a href="/" className="flex items-center gap-2 shrink-0">
-        <span className="text-accent text-sm font-bold tracking-tight">⌖ WC EDGE</span>
+      <a href="/" className="flex items-center gap-2 shrink-0" aria-label="World Cup Terminal">
+        <Image
+          src="/brand/wordmark.jpg"
+          alt="World Cup Terminal"
+          width={120}
+          height={32}
+          className="h-7 w-auto"
+          priority
+        />
       </a>
 
       <div className="flex-1" />

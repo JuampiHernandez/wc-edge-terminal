@@ -149,7 +149,7 @@ export function buildIcs(events: IcsEvent[], calName: string, calDesc: string): 
   const header = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//wc-edge-terminal//World Cup 2026//EN",
+    "PRODID:-//world-cup-terminal//World Cup 2026//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     `X-WR-CALNAME:${calName}`,

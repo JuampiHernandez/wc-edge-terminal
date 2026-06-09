@@ -19,6 +19,18 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t.meta.title,
     description: t.meta.description,
+    applicationName: "World Cup Terminal",
+    openGraph: {
+      title: t.meta.title,
+      description: t.meta.description,
+      siteName: "World Cup Terminal",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: t.meta.title,
+      description: t.meta.description,
+    },
   };
 }
 

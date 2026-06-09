@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { LocaleToggle } from "@/components/LocaleToggle";
 import { useLocale } from "@/components/LocaleProvider";
@@ -64,7 +65,13 @@ export default function CalendarPage() {
           <LocaleToggle />
         </div>
 
-        <div className="text-4xl mb-3">🏆</div>
+        <Image
+          src="/brand/icon.jpg"
+          alt="World Cup Terminal"
+          width={64}
+          height={64}
+          className="mx-auto mb-3 h-16 w-16 rounded-full"
+        />
         <h1 className="text-xl font-semibold tracking-tight">{t.calendar.title}</h1>
         <p className="text-[12px] text-subtle mt-2 mb-6">{t.calendar.subtitle}</p>
 

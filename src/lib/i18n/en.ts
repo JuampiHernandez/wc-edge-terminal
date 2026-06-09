@@ -72,9 +72,9 @@ export type Messages = {
 
 export const en: Messages = {
   meta: {
-    title: "WC Edge Terminal",
+    title: "World Cup Terminal",
     description:
-      "The information edge for 2026 World Cup prediction markets — injuries, lineups, weather, whale flow and line moves, linked to every Polymarket market.",
+      "Live markets. Smart signals. Every match. One place. — injuries, lineups, weather, whale flow and line moves, linked to every Polymarket market.",
   },
   header: {
     calendar: "Calendar",

@@ -2,9 +2,9 @@ import type { Messages } from "./en";
 
 export const es: Messages = {
   meta: {
-    title: "WC Edge Terminal",
+    title: "World Cup Terminal",
     description:
-      "La ventaja informativa para los mercados del Mundial 2026 — lesiones, alineaciones, clima, flujo de ballenas y movimientos de línea, vinculados a cada mercado de Polymarket.",
+      "Mercados en vivo. Señales inteligentes. Todos los partidos. Un solo lugar. — lesiones, alineaciones, clima, flujo de ballenas y movimientos de línea, vinculados a cada mercado de Polymarket.",
   },
   header: {
     calendar: "Calendario",
