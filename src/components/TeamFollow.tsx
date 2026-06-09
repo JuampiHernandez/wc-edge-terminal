@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useSession } from "next-auth/react";
+import { useLocale } from "@/components/LocaleProvider";
 import { WC_NATIONS } from "@/lib/teams-list";
 import { useFollows } from "@/lib/follows";
 
 export function TeamFollow() {
   const { follows, toggle } = useFollows();
   const { data: session, status } = useSession();
+  const { t } = useLocale();
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
@@ -18,11 +20,11 @@ export function TeamFollow() {
 
   async function saveDigest() {
     if (status !== "authenticated") {
-      setMsg("Sign up with Google to enable daily emails.");
+      setMsg(t.teamFollow.signUpForDigest);
       return;
     }
     if (follows.length === 0) {
-      setMsg("Select at least one team.");
+      setMsg(t.teamFollow.selectTeam);
       return;
     }
     setSaving(true);
@@ -35,7 +37,7 @@ export function TeamFollow() {
       });
       const data = (await res.json()) as { error?: string; digest?: string };
       if (!res.ok) throw new Error(data.error ?? "failed");
-      setMsg(`Daily digest enabled · ${data.digest}`);
+      setMsg(t.teamFollow.digestEnabled(data.digest ?? ""));
     } catch (e) {
       setMsg(String(e));
     } finally {
@@ -46,14 +48,12 @@ export function TeamFollow() {
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="px-3 py-2 border-b border-border shrink-0">
-        <div className="text-[10px] uppercase tracking-[0.25em] text-muted mb-1">Follow teams</div>
-        <div className="text-[9px] text-subtle mb-2">
-          Daily email digest · all news for your teams, end of day
-        </div>
+        <div className="text-[10px] uppercase tracking-[0.25em] text-muted mb-1">{t.teamFollow.title}</div>
+        <div className="text-[9px] text-subtle mb-2">{t.teamFollow.subtitle}</div>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="search teams…"
+          placeholder={t.teamFollow.searchPlaceholder}
           className="w-full bg-elevated border border-border rounded-sm px-2 py-1 text-[11px] text-text placeholder:text-subtle focus:outline-none focus:border-accent"
         />
       </div>
@@ -86,14 +86,14 @@ export function TeamFollow() {
       </div>
 
       <div className="shrink-0 px-3 py-2 border-t border-border space-y-1.5">
-        <div className="text-[9px] text-subtle">{follows.length} team{follows.length === 1 ? "" : "s"} selected</div>
+        <div className="text-[9px] text-subtle">{t.teamFollow.teamsSelected(follows.length)}</div>
         <button
           type="button"
           onClick={saveDigest}
           disabled={saving}
           className="w-full text-[10px] font-mono py-1.5 border border-accent/50 bg-accent/10 text-accent rounded-sm hover:bg-accent/20 disabled:opacity-50"
         >
-          {saving ? "saving…" : "Enable daily email digest"}
+          {saving ? t.teamFollow.saving : t.teamFollow.enableDigest}
         </button>
         {msg && <div className="text-[9px] text-muted leading-snug">{msg}</div>}
       </div>

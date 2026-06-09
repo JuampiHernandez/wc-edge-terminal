@@ -1,6 +1,20 @@
 @import "tailwindcss";
 
-:root {
+:root,
+[data-theme="light"] {
+  --bg: #f7f8fa;
+  --panel: #ffffff;
+  --elevated: #eef0f3;
+  --border: #dfe2e8;
+  --text: #121418;
+  --muted: #5c6370;
+  --subtle: #8b919c;
+  --accent: #c27803;
+  --pos: #16a34a;
+  --neg: #dc2626;
+}
+
+[data-theme="dark"] {
   --bg: #0a0b0d;
   --panel: #111317;
   --elevated: #171a1f;

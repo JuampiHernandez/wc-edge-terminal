@@ -18,9 +18,9 @@ export function fmtPp(pp: number): string {
   return `${s}${pp.toFixed(1)}`;
 }
 
-export function timeAgo(ms: number): string {
+export function timeAgo(ms: number, nowLabel = "now"): string {
   const diff = Date.now() - ms;
-  if (diff < 0) return "now";
+  if (diff < 0) return nowLabel;
   const sec = Math.floor(diff / 1000);
   if (sec < 60) return `${sec}s`;
   const min = Math.floor(sec / 60);

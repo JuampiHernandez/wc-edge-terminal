@@ -1,6 +1,7 @@
 "use client";
 
 import type { EdgeScore } from "@/lib/types";
+import { useLocale } from "@/components/LocaleProvider";
 import { fmtPp } from "@/lib/format";
 import { flagForLabel } from "@/lib/worldcup";
 
@@ -13,19 +14,18 @@ export function MispricingBoard({
   onSelect: (slug: string) => void;
   selectedSlug: string | null;
 }) {
+  const { t } = useLocale();
   const top = edges.slice(0, 24);
 
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="px-3 py-1.5 border-b border-border flex items-center gap-2 shrink-0">
-        <span className="text-[10px] uppercase tracking-[0.25em] text-accent">Mispricing Board</span>
-        <span className="text-[9px] text-subtle">model fair price vs market · sorted by divergence</span>
+        <span className="text-[10px] uppercase tracking-[0.25em] text-accent">{t.mispricing.title}</span>
+        <span className="text-[9px] text-subtle">{t.mispricing.subtitle}</span>
       </div>
       <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden flex items-stretch">
         {top.length === 0 && (
-          <div className="flex items-center px-4 text-[10px] text-subtle">
-            no divergence detected — signals are in line with prices
-          </div>
+          <div className="flex items-center px-4 text-[10px] text-subtle">{t.mispricing.empty}</div>
         )}
         {top.map((e) => {
           const edgePp = e.edge * 100;

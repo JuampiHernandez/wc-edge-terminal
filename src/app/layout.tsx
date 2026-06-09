@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/Providers";
+import { getServerLocale, getServerMessages } from "@/lib/i18n/server";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,25 +14,37 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "WC Edge Terminal",
-  description:
-    "The information edge for 2026 World Cup prediction markets — injuries, lineups, weather, whale flow and line moves, linked to every Polymarket market.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerMessages();
+  return {
+    title: t.meta.title,
+    description: t.meta.description,
+  };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getServerLocale();
+
   return (
     <html
-      lang="en"
+      lang={locale}
       suppressHydrationWarning
+      data-theme="light"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("wc-edge-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body suppressHydrationWarning className="h-dvh overflow-hidden">
-        <Providers>{children}</Providers>
+        <Providers locale={locale}>{children}</Providers>
       </body>
     </html>
   );

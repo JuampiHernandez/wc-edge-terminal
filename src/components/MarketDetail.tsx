@@ -1,21 +1,23 @@
 "use client";
 
-import type { Market, Signal } from "@/lib/types";
+import type { Market, Signal, SignalKind } from "@/lib/types";
+import { useLocale } from "@/components/LocaleProvider";
 import { scoreMarket, signalsForMarket } from "@/lib/edge";
 import { INFO_SIGNAL_KINDS } from "@/lib/signals";
-import { KIND_META, toneColor } from "@/lib/signal-meta";
+import { localizedKindMeta, toneColor } from "@/lib/i18n";
 import { flagFor, flagForLabel } from "@/lib/worldcup";
 import { fmtUsd, fmtPp, timeAgo } from "@/lib/format";
 
-const GROUPS: { title: string; kinds: string[] }[] = [
-  { title: "Availability", kinds: ["injury", "suspension", "lineup", "card_watch"] },
-  { title: "Schedule", kinds: ["fatigue"] },
-  { title: "Conditions", kinds: ["weather", "referee"] },
-  { title: "News", kinds: ["news"] },
+const GROUP_DEFS: { key: "availability" | "schedule" | "conditions" | "news"; kinds: SignalKind[] }[] = [
+  { key: "availability", kinds: ["injury", "suspension", "lineup", "card_watch"] },
+  { key: "schedule", kinds: ["fatigue"] },
+  { key: "conditions", kinds: ["weather", "referee"] },
+  { key: "news", kinds: ["news"] },
 ];
 
 function SignalRow({ s }: { s: Signal }) {
-  const meta = KIND_META[s.kind];
+  const { locale, t } = useLocale();
+  const meta = localizedKindMeta(locale, s.kind);
   return (
     <a
       href={s.url}
@@ -41,17 +43,19 @@ function SignalRow({ s }: { s: Signal }) {
             {s.priceImpact.direction === "up" ? "▲" : "▼"} {s.priceImpact.estPct.toFixed(1)}
           </div>
         )}
-        <div className="text-[8px] text-subtle">{timeAgo(s.t)}</div>
+        <div className="text-[8px] text-subtle">{timeAgo(s.t, t.time.now)}</div>
       </div>
     </a>
   );
 }
 
 export function MarketDetail({ market, signals }: { market: Market | null; signals: Signal[] }) {
+  const { locale, t } = useLocale();
+
   if (!market) {
     return (
       <div className="flex items-center justify-center h-full text-[11px] text-subtle">
-        select a market to see why it moves
+        {t.marketDetail.selectMarket}
       </div>
     );
   }
@@ -67,7 +71,6 @@ export function MarketDetail({ market, signals }: { market: Market | null; signa
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      {/* Header */}
       <div className="px-4 py-3 border-b border-border shrink-0">
         <div className="text-[9px] uppercase tracking-[0.25em] text-subtle">{market.eventTitle}</div>
         <div className="flex items-center gap-2 mt-1">
@@ -79,57 +82,56 @@ export function MarketDetail({ market, signals }: { market: Market | null; signa
         <div className="text-[10px] text-subtle mt-1 truncate">{market.question}</div>
       </div>
 
-      {/* Price vs fair price */}
       <div className="px-4 py-3 border-b border-border shrink-0 grid grid-cols-3 gap-2">
-        <Stat label="Market" value={`${mktPct.toFixed(1)}%`} />
-        <Stat label="Fair (model)" value={`${fairPct.toFixed(1)}%`} color={edgeColor} />
-        <Stat label="Edge" value={`${fmtPp(edgePp)}pp`} color={edgeColor} />
+        <Stat label={t.marketDetail.market} value={`${mktPct.toFixed(1)}%`} />
+        <Stat label={t.marketDetail.fair} value={`${fairPct.toFixed(1)}%`} color={edgeColor} />
+        <Stat label={t.marketDetail.edge} value={`${fmtPp(edgePp)}pp`} color={edgeColor} />
       </div>
 
-      {/* Edge bar */}
       <div className="px-4 py-3 border-b border-border shrink-0">
         <div className="relative h-2 bg-elevated rounded-full overflow-hidden">
           <div className="absolute inset-y-0 left-0 bg-muted/40" style={{ width: `${mktPct}%` }} />
           <div
             className="absolute inset-y-0 w-0.5"
             style={{ left: `${fairPct}%`, background: edgeColor }}
-            title={`fair ${fairPct.toFixed(1)}%`}
+            title={`${t.marketDetail.fair} ${fairPct.toFixed(1)}%`}
           />
         </div>
         <div className="flex justify-between text-[8px] text-subtle mt-1">
-          <span>market {mktPct.toFixed(0)}%</span>
-          <span style={{ color: edgeColor }}>fair {fairPct.toFixed(0)}%</span>
+          <span>{t.marketDetail.marketPct(mktPct)}</span>
+          <span style={{ color: edgeColor }}>{t.marketDetail.fairPct(fairPct)}</span>
         </div>
         <div className="flex gap-3 mt-2 text-[10px] text-subtle">
-          <span>vol {fmtUsd(market.volume)}</span>
-          <span>liq {fmtUsd(market.liquidity)}</span>
+          <span>
+            {t.marketDetail.vol} {fmtUsd(market.volume)}
+          </span>
+          <span>
+            {t.marketDetail.liq} {fmtUsd(market.liquidity)}
+          </span>
           {typeof market.change24h === "number" && (
             <span style={{ color: market.change24h >= 0 ? "var(--pos)" : "var(--neg)" }}>
-              24h {fmtPp(market.change24h)}pp
+              {t.marketDetail.change24h} {fmtPp(market.change24h)}pp
             </span>
           )}
         </div>
       </div>
 
-      {/* Why this moves */}
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-2">
         <div className="text-[10px] uppercase tracking-[0.25em] text-accent mb-1">
-          Related information
+          {t.marketDetail.relatedInfo}
         </div>
-        <div className="text-[9px] text-subtle mb-2">
-          For this market only · news & factors · {linked.length} item{linked.length === 1 ? "" : "s"}
-        </div>
+        <div className="text-[9px] text-subtle mb-2">{t.marketDetail.relatedSubtitle(linked.length)}</div>
         {linked.length === 0 && (
-          <div className="py-6 text-center text-[10px] text-subtle">
-            no news or factors linked to this market yet
-          </div>
+          <div className="py-6 text-center text-[10px] text-subtle">{t.marketDetail.noLinked}</div>
         )}
-        {GROUPS.map((g) => {
+        {GROUP_DEFS.map((g) => {
           const items = linked.filter((s) => g.kinds.includes(s.kind));
           if (items.length === 0) return null;
           return (
-            <div key={g.title} className="mb-3">
-              <div className="text-[9px] uppercase tracking-[0.2em] text-subtle mb-1">{g.title}</div>
+            <div key={g.key} className="mb-3">
+              <div className="text-[9px] uppercase tracking-[0.2em] text-subtle mb-1">
+                {t.marketDetail.groups[g.key]}
+              </div>
               {items.map((s) => (
                 <SignalRow key={s.id} s={s} />
               ))}

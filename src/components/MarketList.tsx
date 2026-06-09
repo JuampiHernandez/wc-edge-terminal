@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import type { Market, MarketEvent, Signal } from "@/lib/types";
+import { useLocale } from "@/components/LocaleProvider";
 import { scoreMarket } from "@/lib/edge";
 import { INFO_SIGNAL_KINDS, linksToMarket } from "@/lib/signals";
 import { flagFor, flagForLabel } from "@/lib/worldcup";
+import { fmtUsd } from "@/lib/format";
 
 const DEFAULT_EVENT = "world-cup-winner";
-import { fmtUsd } from "@/lib/format";
 
 type Row = { market: Market; edge: number; signalCount: number };
 
@@ -22,6 +23,7 @@ export function MarketList({
   selectedSlug: string | null;
   onSelect: (slug: string) => void;
 }) {
+  const { t } = useLocale();
   const [query, setQuery] = useState("");
   const [eventFilter, setEventFilter] = useState<string>(DEFAULT_EVENT);
 
@@ -50,7 +52,7 @@ export function MarketList({
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="search markets…"
+          placeholder={t.marketList.searchPlaceholder}
           className="w-full bg-elevated border border-border rounded-sm px-2 py-1 text-[11px] text-text placeholder:text-subtle focus:outline-none focus:border-accent"
         />
         <select
@@ -58,7 +60,7 @@ export function MarketList({
           onChange={(e) => setEventFilter(e.target.value)}
           className="mt-1.5 w-full bg-elevated border border-border rounded-sm px-2 py-1 text-[10px] text-muted focus:outline-none focus:border-accent"
         >
-          <option value="all">all events ({events.length})</option>
+          <option value="all">{t.marketList.allEvents(events.length)}</option>
           {events.map((ev) => (
             <option key={ev.slug} value={ev.slug}>
               {ev.title} ({ev.markets.length})
@@ -69,7 +71,7 @@ export function MarketList({
 
       <div className="flex-1 min-h-0 overflow-y-auto">
         {rows.length === 0 && (
-          <div className="py-8 text-center text-[10px] text-subtle">no markets</div>
+          <div className="py-8 text-center text-[10px] text-subtle">{t.marketList.noMarkets}</div>
         )}
         {rows.map(({ market: m, edge, signalCount }) => {
           const active = m.slug === selectedSlug;

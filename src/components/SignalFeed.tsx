@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Signal, SignalKind } from "@/lib/types";
-import { KIND_META, KIND_ORDER, toneColor } from "@/lib/signal-meta";
+import { useLocale } from "@/components/LocaleProvider";
+import { KIND_ORDER, localizedKindMeta, toneColor } from "@/lib/i18n";
 import { flagFor } from "@/lib/worldcup";
 import { timeAgo } from "@/lib/format";
 
@@ -13,6 +14,7 @@ export function SignalFeed({
   signals: Signal[];
   onJump: (s: Signal) => void;
 }) {
+  const { locale, t } = useLocale();
   const [active, setActive] = useState<SignalKind | "all">("all");
   const [minSev, setMinSev] = useState(1);
   const listRef = useRef<HTMLDivElement>(null);
@@ -46,36 +48,47 @@ export function SignalFeed({
       <div className="px-3 py-2 border-b border-border shrink-0">
         <div className="flex items-center justify-between mb-1">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.25em] text-muted">Signal Feed</div>
-            <div className="text-[9px] text-subtle">Global · all teams & markets</div>
+            <div className="text-[10px] uppercase tracking-[0.25em] text-muted">{t.signalFeed.title}</div>
+            <div className="text-[9px] text-subtle">{t.signalFeed.subtitle}</div>
           </div>
           <span className="flex items-center gap-1 text-[9px] text-pos">
-            <span className="live-dot w-1.5 h-1.5 rounded-full bg-pos inline-block" /> live
+            <span className="live-dot w-1.5 h-1.5 rounded-full bg-pos inline-block" /> {t.signalFeed.live}
           </span>
         </div>
         <div className="flex flex-wrap gap-1 mt-2">
           <Chip on={active === "all"} onClick={() => pickKind("all")}>
-            all
+            {t.signalFeed.all}
           </Chip>
           {kindsPresent.map((k) => (
-            <Chip key={k} on={active === k} onClick={() => pickKind(k)} color={toneColor[KIND_META[k].tone]}>
-              {KIND_META[k].label.toLowerCase()}
+            <Chip
+              key={k}
+              on={active === k}
+              onClick={() => pickKind(k)}
+              color={toneColor[localizedKindMeta(locale, k).tone]}
+            >
+              {localizedKindMeta(locale, k).label.toLowerCase()}
             </Chip>
           ))}
         </div>
         <div className="flex items-center gap-1 mt-1.5">
-          <span className="text-[8px] text-subtle mr-0.5">priority:</span>
+          <span className="text-[8px] text-subtle mr-0.5">{t.signalFeed.priority}</span>
           {([1, 2, 3] as const).map((sev) => (
             <button
               key={sev}
               type="button"
-              title={sev === 1 ? "all signals" : sev === 2 ? "notable only" : "high impact only"}
+              title={
+                sev === 1
+                  ? t.signalFeed.priorityAll
+                  : sev === 2
+                    ? t.signalFeed.priorityNotable
+                    : t.signalFeed.priorityHigh
+              }
               onClick={() => setMinSev(sev)}
               className={`text-[8px] px-1.5 py-0.5 rounded-sm border ${
                 minSev === sev ? "border-accent text-accent" : "border-border text-subtle"
               }`}
             >
-              {sev === 1 ? "all" : sev === 2 ? "notable" : "high"}
+              {sev === 1 ? t.signalFeed.all : sev === 2 ? t.signalFeed.notable : t.signalFeed.high}
             </button>
           ))}
         </div>
@@ -84,14 +97,14 @@ export function SignalFeed({
       <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto">
         {filtered.length === 0 ? (
           <div className="py-8 text-center text-[10px] text-subtle px-3">
-            no signals match
+            {t.signalFeed.noMatch}
             {active !== "all" && minSev > 1 && (
-              <div className="mt-1 text-[9px]">try lowering priority to &quot;all&quot;</div>
+              <div className="mt-1 text-[9px]">{t.signalFeed.tryLowering}</div>
             )}
           </div>
         ) : (
           filtered.map((s) => {
-            const meta = KIND_META[s.kind];
+            const meta = localizedKindMeta(locale, s.kind);
             const team = s.entities.teams?.[0];
             return (
               <button
@@ -113,14 +126,18 @@ export function SignalFeed({
                     </span>
                     {team && <span className="text-[10px] leading-none">{flagFor(team)}</span>}
                     {s.severity === 3 && (
-                      <span className="text-[7px] px-1 rounded-sm bg-accent/20 text-accent">HIGH</span>
+                      <span className="text-[7px] px-1 rounded-sm bg-accent/20 text-accent">
+                        {t.signalFeed.highBadge}
+                      </span>
                     )}
                   </div>
                   <div className="text-[11px] text-text leading-snug">{s.headline}</div>
                   <div className="flex items-center gap-2 text-[8px] text-subtle mt-0.5">
                     <span>{s.source}</span>
                     <span>·</span>
-                    <span>{timeAgo(s.t)} ago</span>
+                    <span>
+                      {timeAgo(s.t, t.time.now)} {t.signalFeed.ago}
+                    </span>
                   </div>
                 </div>
               </button>
