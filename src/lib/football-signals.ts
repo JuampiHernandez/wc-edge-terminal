@@ -201,9 +201,11 @@ export async function fetchFootballSignals(): Promise<{
     if (injCount > 0) notes.push(`${injCount} injuries`);
   }
 
+  const note = notes.length > 0 ? notes.join(" · ") : matches.length > 0 ? `${matches.length} fixtures (ics)` : "no data";
+
   return {
     signals,
-    note: notes.join(" · ") || "no data",
+    note,
     ok: signals.length > 0,
     matches,
   };

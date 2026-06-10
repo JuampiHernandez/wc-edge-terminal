@@ -141,6 +141,23 @@ async function fetchFeed(feed: RssFeed, index: RosterIndex): Promise<Signal[]> {
     );
 }
 
+async function runFeed(
+  feed: RssFeed,
+  index: RosterIndex,
+  ok: string[],
+  failed: string[],
+  signals: Signal[],
+): Promise<void> {
+  try {
+    const items = await fetchFeed(feed, index);
+    ok.push(feed.id);
+    signals.push(...items);
+  } catch (e) {
+    failed.push(feed.id);
+    console.warn(`[news] ${feed.id}:`, e);
+  }
+}
+
 async function fetchRssBatched(index: RosterIndex): Promise<{
   signals: Signal[];
   ok: string[];
@@ -149,22 +166,17 @@ async function fetchRssBatched(index: RosterIndex): Promise<{
   const ok: string[] = [];
   const failed: string[] = [];
   const signals: Signal[] = [];
-  // Nation feeds first — they always tag a team even without player rosters.
-  const feeds = [...NEWS_FEEDS].sort((a, b) => Number(!!b.teamCode) - Number(!!a.teamCode));
+  const nationFeeds = NEWS_FEEDS.filter((f) => f.teamCode);
+  const generalFeeds = NEWS_FEEDS.filter((f) => !f.teamCode);
 
-  for (let i = 0; i < feeds.length; i += FEED_BATCH) {
-    const batch = feeds.slice(i, i + FEED_BATCH);
-    const results = await Promise.allSettled(batch.map((f) => fetchFeed(f, index)));
-    results.forEach((r, j) => {
-      const feed = batch[j];
-      if (r.status === "fulfilled") {
-        ok.push(feed.id);
-        signals.push(...r.value);
-      } else {
-        failed.push(feed.id);
-        console.warn(`[news] ${feed.id}:`, r.reason);
-      }
-    });
+  // Nation feeds sequentially — each tags a team; avoid BBC rate limits/timeouts.
+  for (const feed of nationFeeds) {
+    await runFeed(feed, index, ok, failed, signals);
+  }
+
+  for (let i = 0; i < generalFeeds.length; i += FEED_BATCH) {
+    const batch = generalFeeds.slice(i, i + FEED_BATCH);
+    await Promise.all(batch.map((f) => runFeed(f, index, ok, failed, signals)));
   }
 
   return { signals, ok, failed };
