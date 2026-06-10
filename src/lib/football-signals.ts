@@ -180,18 +180,22 @@ export async function fetchFootballSignals(): Promise<{
   if (process.env.API_FOOTBALL_KEY && teamIds.size > 0) {
     let injCount = 0;
     for (const [, meta] of [...teamIds.entries()].slice(0, 2)) {
-      const afId = await resolveNationalTeamId(meta.name);
-      if (!afId) continue;
-      const injuries = await fetchTeamInjuries(afId, 2024);
-      if (injuries.length > 0) {
-        signals.push(...injurySignals(meta.name, meta.code, injuries));
-        injCount += injuries.length;
-      }
-      if (!signals.some((s) => s.id.startsWith(`squad_${meta.code}_`))) {
-        const afSquad = await fetchNationalSquad(afId);
-        if (afSquad.length > 0) {
-          signals.push(squadSignal(meta.name, meta.code, afSquad, "API-Football"));
+      try {
+        const afId = await resolveNationalTeamId(meta.name);
+        if (!afId) continue;
+        const injuries = await fetchTeamInjuries(afId, 2024);
+        if (injuries.length > 0) {
+          signals.push(...injurySignals(meta.name, meta.code, injuries));
+          injCount += injuries.length;
         }
+        if (!signals.some((s) => s.id.startsWith(`squad_${meta.code}_`))) {
+          const afSquad = await fetchNationalSquad(afId);
+          if (afSquad.length > 0) {
+            signals.push(squadSignal(meta.name, meta.code, afSquad, "API-Football"));
+          }
+        }
+      } catch (e) {
+        console.warn(`[football-signals] api-football ${meta.code}:`, e);
       }
     }
     if (injCount > 0) notes.push(`${injCount} injuries`);

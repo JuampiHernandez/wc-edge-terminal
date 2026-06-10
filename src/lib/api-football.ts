@@ -7,7 +7,9 @@
 const BASE = "https://v3.football.api-sports.io";
 
 function key(): string | undefined {
-  return process.env.API_FOOTBALL_KEY;
+  const raw = process.env.API_FOOTBALL_KEY?.trim();
+  if (!raw) return undefined;
+  return raw.replace(/[^\x20-\x7E]/g, "");
 }
 
 function watchRateLimit(res: Response): void {

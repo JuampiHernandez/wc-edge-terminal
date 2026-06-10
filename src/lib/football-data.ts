@@ -17,7 +17,10 @@ export type FdMatch = {
 };
 
 function token(): string | undefined {
-  return process.env.FOOTBALL_DATA_API_KEY;
+  const raw = process.env.FOOTBALL_DATA_API_KEY?.trim();
+  if (!raw) return undefined;
+  // Headers must be ByteString — strip accidental unicode from copy/paste.
+  return raw.replace(/[^\x20-\x7E]/g, "");
 }
 
 function authHeaders(): HeadersInit {

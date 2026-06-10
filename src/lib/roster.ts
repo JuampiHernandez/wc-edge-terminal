@@ -28,7 +28,7 @@ export type RosterIndex = {
   /** Longest-first full-name phrases for headline matching. */
   fullNameTerms: { phrase: string; teamCode: string; name: string }[];
   /** Surname → team code (only when surname is unique across all squads). */
-  uniqueSurnames: Map<string, string>;
+  uniqueSurnames: Record<string, string>;
   /** Team search terms longest-first: phrase → team code. */
   teamTerms: { phrase: string; teamCode: string }[];
   playerCount: number;
@@ -159,9 +159,9 @@ export function buildIndex(stored: StoredRoster): RosterIndex {
 
   fullNameTerms.sort((a, b) => b.phrase.length - a.phrase.length);
 
-  const uniqueSurnames = new Map<string, string>();
+  const uniqueSurnames: Record<string, string> = {};
   for (const [sn, codes] of surnameCounts) {
-    if (codes.size === 1) uniqueSurnames.set(sn, [...codes][0]);
+    if (codes.size === 1) uniqueSurnames[sn] = [...codes][0];
   }
 
   const playerCount = Object.values(stored.teams).reduce((n, p) => n + p.length, 0);
@@ -196,7 +196,7 @@ export function matchHeadlineEntities(
     }
   }
 
-  for (const [sn, teamCode] of index.uniqueSurnames) {
+  for (const [sn, teamCode] of Object.entries(index.uniqueSurnames ?? {})) {
     if (containsPhrase(h, sn)) teams.add(teamCode);
   }
 
@@ -333,7 +333,7 @@ async function loadRosterIndexInner(): Promise<RosterIndex> {
   return staticRosterIndex();
 }
 
-const cachedRosterIndex = unstable_cache(loadRosterIndexInner, ["wc-roster-index"], {
+const cachedRosterIndex = unstable_cache(loadRosterIndexInner, ["wc-roster-index-v2"], {
   revalidate: 86_400,
   tags: [ROSTER_TAG],
 });
