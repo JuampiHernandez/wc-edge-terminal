@@ -53,6 +53,8 @@ export const NEWS_FEEDS: RssFeed[] = [
 
 const UA = "WC-Edge-Terminal/1.0 (RSS reader)";
 const GLOBAL_CAP = 120;
+const FEED_TIMEOUT_MS = 8_000;
+const FEED_BATCH = 6;
 
 function stripTags(s: string): string {
   return s.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
@@ -99,6 +101,7 @@ async function fetchFeed(feed: RssFeed, index: RosterIndex): Promise<Signal[]> {
   const res = await fetch(feed.url, {
     headers: { Accept: "application/rss+xml, application/xml, text/xml, */*", "User-Agent": UA },
     next: { revalidate: 1800 },
+    signal: AbortSignal.timeout(FEED_TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`${feed.id}: HTTP ${res.status}`);
   const xml = await res.text();
@@ -125,6 +128,35 @@ async function fetchFeed(feed: RssFeed, index: RosterIndex): Promise<Signal[]> {
     );
 }
 
+async function fetchRssBatched(index: RosterIndex): Promise<{
+  signals: Signal[];
+  ok: string[];
+  failed: string[];
+}> {
+  const ok: string[] = [];
+  const failed: string[] = [];
+  const signals: Signal[] = [];
+  // Nation feeds first — they always tag a team even without player rosters.
+  const feeds = [...NEWS_FEEDS].sort((a, b) => Number(!!b.teamCode) - Number(!!a.teamCode));
+
+  for (let i = 0; i < feeds.length; i += FEED_BATCH) {
+    const batch = feeds.slice(i, i + FEED_BATCH);
+    const results = await Promise.allSettled(batch.map((f) => fetchFeed(f, index)));
+    results.forEach((r, j) => {
+      const feed = batch[j];
+      if (r.status === "fulfilled") {
+        ok.push(feed.id);
+        signals.push(...r.value);
+      } else {
+        failed.push(feed.id);
+        console.warn(`[news] ${feed.id}:`, r.reason);
+      }
+    });
+  }
+
+  return { signals, ok, failed };
+}
+
 export async function fetchNewsSignals(): Promise<{
   signals: Signal[];
   ok: string[];
@@ -133,44 +165,44 @@ export async function fetchNewsSignals(): Promise<{
   apiFailed?: string[];
   rosterNote?: string;
 }> {
-  const index = await getRosterIndex();
-  const [rssResults, apiResults] = await Promise.all([
-    Promise.allSettled(NEWS_FEEDS.map((f) => fetchFeed(f, index))),
-    fetchApiNewsSignals(index),
-  ]);
+  try {
+    const index = await getRosterIndex();
+    const [rssResults, apiResults] = await Promise.all([
+      fetchRssBatched(index),
+      fetchApiNewsSignals(index),
+    ]);
 
-  const ok: string[] = [];
-  const failed: string[] = [];
-  const merged: Signal[] = [...apiResults.signals];
+    const merged: Signal[] = [...apiResults.signals, ...rssResults.signals];
 
-  rssResults.forEach((r, i) => {
-    if (r.status === "fulfilled") {
-      ok.push(NEWS_FEEDS[i].id);
-      merged.push(...r.value);
-    } else {
-      failed.push(NEWS_FEEDS[i].id);
-      console.warn(`[news] ${NEWS_FEEDS[i].id}:`, r.reason);
-    }
-  });
+    const seen = new Set<string>();
+    const signals = merged
+      .filter((s) => isFresh(s.t))
+      .sort((a, b) => b.t - a.t)
+      .filter((s) => {
+        const key = s.headline.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, GLOBAL_CAP);
 
-  const seen = new Set<string>();
-  const signals = merged
-    .filter((s) => isFresh(s.t))
-    .sort((a, b) => b.t - a.t)
-    .filter((s) => {
-      const key = s.headline.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .slice(0, GLOBAL_CAP);
+    const rosterNote =
+      index.playerCount > 0
+        ? `${index.playerCount} players · ${index.teamCount} squads`
+        : "aliases only (cron warms player rosters)";
 
-  const rosterNote =
-    index.playerCount > 0
-      ? `${index.playerCount} players · ${index.teamCount} squads`
-      : "no roster (set FOOTBALL_DATA_API_KEY or API_FOOTBALL_KEY)";
-
-  return { signals, ok, failed, apiOk: apiResults.ok, apiFailed: apiResults.failed, rosterNote };
+    return {
+      signals,
+      ok: rssResults.ok,
+      failed: rssResults.failed,
+      apiOk: apiResults.ok,
+      apiFailed: apiResults.failed,
+      rosterNote,
+    };
+  } catch (e) {
+    console.error("[news] fetchNewsSignals failed:", e);
+    return { signals: [], ok: [], failed: ["all"], apiFailed: ["all"] };
+  }
 }
 
 export { resolveTeam };

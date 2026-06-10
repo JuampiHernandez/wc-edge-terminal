@@ -2,7 +2,7 @@
 // Requires CRON_SECRET (same as digest cron).
 
 import { NextResponse } from "next/server";
-import { refreshRosters, buildIndex } from "@/lib/roster";
+import { getCachedSquads, refreshRosters, buildIndex, revalidateRosterCache } from "@/lib/roster";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -20,10 +20,12 @@ export async function GET(req: Request) {
   try {
     const stored = await refreshRosters();
     const index = buildIndex(stored);
+    await revalidateRosterCache();
+    const squads = await getCachedSquads();
     return NextResponse.json({
       ok: true,
-      teams: index.teamCount,
-      players: index.playerCount,
+      teams: Object.keys(squads).length || index.teamCount,
+      players: Object.values(squads).flat().length || index.playerCount,
       generatedAt: stored.generatedAt,
     });
   } catch (e) {

@@ -9,6 +9,8 @@ import {
   type FdMatch,
 } from "./football-data";
 import { fetchNationalSquad, fetchTeamInjuries, resolveNationalTeamId } from "./api-football";
+import { getCachedSquads } from "./roster";
+import { nationName } from "./teams-list";
 
 function fmtDate(iso: string): string {
   const d = new Date(iso);
@@ -24,7 +26,14 @@ function fixtureSignals(matches: FdMatch[]): Signal[] {
     const home = tlaToCode(m.homeTeam.tla);
     const away = tlaToCode(m.awayTeam.tla);
     const gs = groupSlug(m.group);
-    const slugs = ["world-cup-winner", "world-cup-team-to-advance-to-knockout-stages"];
+    const slugs = [
+      "world-cup-winner",
+      "world-cup-team-to-advance-to-knockout-stages",
+      "world-cup-nation-to-reach-final",
+      "world-cup-nation-to-reach-semifinals",
+      "world-cup-nation-to-reach-quarterfinals",
+      "world-cup-nation-to-reach-round-of-16",
+    ];
     if (gs) slugs.push(gs);
     const days = daysUntil(m.utcDate);
     const urgency: 1 | 2 | 3 = days <= 2 ? 3 : days <= 7 ? 2 : 1;
@@ -50,22 +59,32 @@ function fixtureSignals(matches: FdMatch[]): Signal[] {
 function squadSignal(
   teamName: string,
   teamCode: string,
-  players: { name: string; position?: string }[],
+  players: { name: string; position?: string }[] | string[],
   source: string,
 ): Signal {
-  const gk = players.filter((p) => /goal/i.test(p.position ?? "")).length;
-  const fwd = players.filter((p) => /attack|forward|offence|offense/i.test(p.position ?? "")).length;
+  const names = players.map((p) => (typeof p === "string" ? p : p.name));
+  const gk = players.filter((p) => /goal/i.test(typeof p === "string" ? "" : (p.position ?? ""))).length;
+  const fwd = players.filter((p) =>
+    /attack|forward|offence|offense/i.test(typeof p === "string" ? "" : (p.position ?? "")),
+  ).length;
   return {
     id: `squad_${teamCode}_${source}`,
     t: Date.now(),
     kind: "lineup",
     severity: 2,
     confidence: 0.95,
-    headline: `${teamName} squad: ${players.length} players listed`,
+    headline: `${teamName} squad: ${names.length} players listed`,
     detail: `${gk} GK · ${fwd} attackers · official squad data`,
     source,
-    entities: { teams: [teamCode], players: players.slice(0, 5).map((p) => p.name) },
-    marketSlugs: ["world-cup-winner", "world-cup-team-to-advance-to-knockout-stages"],
+    entities: { teams: [teamCode], players: names.slice(0, 5) },
+    marketSlugs: [
+      "world-cup-winner",
+      "world-cup-team-to-advance-to-knockout-stages",
+      "world-cup-nation-to-reach-final",
+      "world-cup-nation-to-reach-semifinals",
+      "world-cup-nation-to-reach-quarterfinals",
+      "world-cup-nation-to-reach-round-of-16",
+    ],
   };
 }
 
@@ -92,53 +111,74 @@ function injurySignals(
   });
 }
 
+/** Teams with a fixture in the next N days (unique codes). */
+export function teamsFromFixtures(matches: FdMatch[], withinDays = 45): string[] {
+  const codes = new Set<string>();
+  for (const m of matches) {
+    if (daysUntil(m.utcDate) < 0 || daysUntil(m.utcDate) > withinDays) continue;
+    codes.add(tlaToCode(m.homeTeam.tla));
+    codes.add(tlaToCode(m.awayTeam.tla));
+  }
+  return [...codes];
+}
+
 /**
- * Fetch football signals. Keeps API usage low:
- *   · 1 call  — WC fixtures (cached 1h)
- *   · ≤4 calls — squads for teams playing within 3 days (cached 6h each)
- *   · ≤2 calls — API-Football injury lookup for those same teams (if key set)
+ * Fetch football signals:
+ *   · 1 call — WC fixtures through group stage (cached 1h)
+ *   · squads from cron-warmed roster index (no extra API calls)
+ *   · ≤2 calls — API-Football injury lookup for teams playing within 3 days
  */
 export async function fetchFootballSignals(): Promise<{
   signals: Signal[];
   note: string;
   ok: boolean;
+  matches: FdMatch[];
 }> {
   if (!process.env.FOOTBALL_DATA_API_KEY && !process.env.API_FOOTBALL_KEY) {
-    return { signals: [], note: "no keys configured", ok: false };
+    return { signals: [], note: "no keys configured", ok: false, matches: [] };
   }
 
   const signals: Signal[] = [];
   const notes: string[] = [];
 
-  const matches = await fetchWcFixtures(14);
+  const matches = await fetchWcFixtures(45);
   if (matches.length > 0) {
     signals.push(...fixtureSignals(matches));
     notes.push(`${matches.length} fixtures`);
   }
 
-  // Squads for teams with a match in the next 3 days (max 4 team lookups).
+  // Squads from pre-warmed roster cache — covers all nations without live API calls.
+  const cachedSquads = await getCachedSquads();
+  const fixtureTeams = teamsFromFixtures(matches);
+  let squadCount = 0;
+  for (const code of fixtureTeams) {
+    const playerNames = cachedSquads[code];
+    if (!playerNames?.length) continue;
+    if (signals.some((s) => s.id === `squad_${code}_roster-cache`)) continue;
+    signals.push(squadSignal(nationName(code), code, playerNames, "roster-cache"));
+    squadCount++;
+  }
+  if (squadCount > 0) notes.push(`${squadCount} squads`);
+
+  // Live squad fetch for teams playing within 3 days when cache is empty.
   const soon = matches.filter((m) => daysUntil(m.utcDate) <= 3 && daysUntil(m.utcDate) >= 0);
   const teamIds = new Map<number, { name: string; code: string }>();
   for (const m of soon) {
     teamIds.set(m.homeTeam.id, { name: m.homeTeam.name, code: tlaToCode(m.homeTeam.tla) });
     teamIds.set(m.awayTeam.id, { name: m.awayTeam.name, code: tlaToCode(m.awayTeam.tla) });
   }
-  const toFetch = [...teamIds.entries()].slice(0, 4);
-
-  let squadCount = 0;
-  for (const [id, meta] of toFetch) {
+  for (const [id, meta] of [...teamIds.entries()].slice(0, 4)) {
+    if (signals.some((s) => s.id.startsWith(`squad_${meta.code}_`))) continue;
     const squad = await fetchTeamSquad(id);
     if (squad.length > 0) {
       signals.push(squadSignal(meta.name, meta.code, squad, "football-data.org"));
-      squadCount++;
     }
   }
-  if (squadCount > 0) notes.push(`${squadCount} squads`);
 
   // API-Football injuries (free plan: 2022–2024 seasons — best-effort for near-term squads).
-  if (process.env.API_FOOTBALL_KEY && toFetch.length > 0) {
+  if (process.env.API_FOOTBALL_KEY && teamIds.size > 0) {
     let injCount = 0;
-    for (const [, meta] of toFetch.slice(0, 2)) {
+    for (const [, meta] of [...teamIds.entries()].slice(0, 2)) {
       const afId = await resolveNationalTeamId(meta.name);
       if (!afId) continue;
       const injuries = await fetchTeamInjuries(afId, 2024);
@@ -146,8 +186,7 @@ export async function fetchFootballSignals(): Promise<{
         signals.push(...injurySignals(meta.name, meta.code, injuries));
         injCount += injuries.length;
       }
-      // Also attach API-Football squad if football-data squad was empty.
-      if (!signals.some((s) => s.id === `squad_${meta.code}_football-data.org`)) {
+      if (!signals.some((s) => s.id.startsWith(`squad_${meta.code}_`))) {
         const afSquad = await fetchNationalSquad(afId);
         if (afSquad.length > 0) {
           signals.push(squadSignal(meta.name, meta.code, afSquad, "API-Football"));
@@ -155,12 +194,12 @@ export async function fetchFootballSignals(): Promise<{
       }
     }
     if (injCount > 0) notes.push(`${injCount} injuries`);
-    else notes.push("injuries: none (free plan = seasons 2022–24)");
   }
 
   return {
     signals,
     note: notes.join(" · ") || "no data",
     ok: signals.length > 0,
+    matches,
   };
 }

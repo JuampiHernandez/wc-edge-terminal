@@ -7,12 +7,13 @@ import { fetchEvents } from "@/lib/polymarket";
 import { fetchNewsSignals } from "@/lib/news";
 import { fetchVenueWeather, weatherSignals } from "@/lib/weather";
 import { lineMoveSignals } from "@/lib/signals";
-import { fetchFootballSignals } from "@/lib/football-signals";
+import { fetchFootballSignals, teamsFromFixtures } from "@/lib/football-signals";
 import { ALL_WC_EVENT_SLUGS } from "@/lib/worldcup";
 import type { MarketEvent, Signal } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 type Source = { id: string; ok: boolean; note?: string };
 
@@ -53,21 +54,15 @@ export async function GET() {
       note: `${newsR.value.ok.length} rss${apiNote} · ${newsR.value.rosterNote ?? ""}`,
     });
   } else {
-    sources.push({ id: "news", ok: false });
+    const err = newsR.reason instanceof Error ? newsR.reason.message : String(newsR.reason);
+    sources.push({ id: "news", ok: false, note: err.slice(0, 120) });
   }
 
-  // Weather
-  if (weatherR.status === "fulfilled") {
-    const ws = weatherSignals(weatherR.value);
-    signals.push(...ws);
-    sources.push({ id: "weather", ok: true, note: `${ws.length} venue alerts` });
-  } else {
-    sources.push({ id: "weather", ok: false });
-  }
-
-  // Football-data.org + API-Football
+  // Football-data.org + API-Football (before weather — fixtures tag teams to venues)
+  let fixtureTeams: string[] = [];
   if (footballR.status === "fulfilled") {
     signals.push(...footballR.value.signals);
+    fixtureTeams = teamsFromFixtures(footballR.value.matches);
     sources.push({
       id: "football-api",
       ok: footballR.value.ok,
@@ -75,6 +70,15 @@ export async function GET() {
     });
   } else {
     sources.push({ id: "football-api", ok: false, note: "fetch failed" });
+  }
+
+  // Weather — linked to nations with upcoming fixtures (all play in NA host conditions)
+  if (weatherR.status === "fulfilled") {
+    const ws = weatherSignals(weatherR.value, fixtureTeams);
+    signals.push(...ws);
+    sources.push({ id: "weather", ok: true, note: `${ws.length} venue alerts` });
+  } else {
+    sources.push({ id: "weather", ok: false });
   }
 
   signals.sort((a, b) => b.t - a.t);

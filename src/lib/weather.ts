@@ -72,9 +72,10 @@ export async function fetchVenueWeather(): Promise<VenueWeather[]> {
  * actually edge-relevant (extreme heat, real rain, strong wind, high altitude)
  * so the feed stays signal, not noise.
  */
-export function weatherSignals(weather: VenueWeather[]): Signal[] {
+export function weatherSignals(weather: VenueWeather[], linkedTeams: string[] = []): Signal[] {
   const out: Signal[] = [];
   const now = Date.now();
+  const teams = [...new Set(linkedTeams)];
 
   for (const w of weather) {
     const notes: string[] = [];
@@ -108,8 +109,8 @@ export function weatherSignals(weather: VenueWeather[]): Signal[] {
       headline: `${w.city}: ${notes.join(" · ")}`,
       detail: `${w.stadium}. Conditions affect pace, total goals and late-game fatigue.`,
       source: "Open-Meteo",
-      entities: { venue: w.venueId },
-      marketSlugs: [],
+      entities: { venue: w.venueId, teams },
+      marketSlugs: teams.length > 0 ? ["world-cup-winner"] : [],
     });
   }
   return out;

@@ -29,13 +29,18 @@ function classify(headline: string): { kind: SignalKind; severity: 1 | 2 | 3; im
   return { kind: "news", severity: 1 };
 }
 
+const TEAM_EVENT_SLUGS = [
+  "world-cup-winner",
+  "world-cup-team-to-advance-to-knockout-stages",
+  "world-cup-nation-to-reach-final",
+  "world-cup-nation-to-reach-semifinals",
+  "world-cup-nation-to-reach-quarterfinals",
+  "world-cup-nation-to-reach-round-of-16",
+] as const;
+
 function slugsForTeams(teams: string[]): string[] {
   if (teams.length === 0) return [];
-  return [
-    "world-cup-winner",
-    "world-cup-team-to-advance-to-knockout-stages",
-    "world-cup-nation-to-reach-final",
-  ];
+  return [...TEAM_EVENT_SLUGS];
 }
 
 export function rawToSignal(item: RawNewsItem, index: RosterIndex): Signal {

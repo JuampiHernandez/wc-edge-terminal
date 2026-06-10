@@ -264,7 +264,11 @@ export async function refreshRostersBatch(maxTeams = 10): Promise<StoredRoster> 
   stored.generatedAt = now;
   await writeStored(stored);
   mem = { at: Date.now(), index: buildIndex(stored) };
-  revalidateTag(ROSTER_TAG, { expire: 0 });
+  try {
+    revalidateTag(ROSTER_TAG, { expire: 0 });
+  } catch {
+    /* revalidateTag is cron-only; ignore in ephemeral runtimes */
+  }
   return stored;
 }
 
@@ -307,8 +311,17 @@ export async function refreshRosters(): Promise<StoredRoster> {
   const stored: StoredRoster = { generatedAt: now, teams, teamUpdatedAt };
   await writeStored(stored);
   mem = { at: Date.now(), index: buildIndex(stored) };
-  revalidateTag(ROSTER_TAG, { expire: 0 });
+  try {
+    revalidateTag(ROSTER_TAG, { expire: 0 });
+  } catch {
+    /* revalidateTag is cron-only; ignore in ephemeral runtimes */
+  }
   return stored;
+}
+
+/** Fast index with nation aliases only — safe on every request path. */
+export function staticRosterIndex(): RosterIndex {
+  return buildIndex({ generatedAt: Date.now(), teams: {} });
 }
 
 async function loadRosterIndexInner(): Promise<RosterIndex> {
@@ -316,19 +329,8 @@ async function loadRosterIndexInner(): Promise<RosterIndex> {
   if (stored && Object.keys(stored.teams).length > 0) {
     return buildIndex(stored);
   }
-
-  if (!process.env.FOOTBALL_DATA_API_KEY && !process.env.API_FOOTBALL_KEY) {
-    return buildIndex(stored ?? { generatedAt: Date.now(), teams: {} });
-  }
-
-  try {
-    const fresh = await refreshRostersBatch(8);
-    return buildIndex(fresh);
-  } catch (e) {
-    console.warn("[roster] batch refresh failed:", e);
-    if (stored) return buildIndex(stored);
-    return buildIndex({ generatedAt: Date.now(), teams: {} });
-  }
+  // Never hit football APIs here — cron pre-warms rosters; requests stay fast.
+  return staticRosterIndex();
 }
 
 const cachedRosterIndex = unstable_cache(loadRosterIndexInner, ["wc-roster-index"], {
@@ -338,14 +340,60 @@ const cachedRosterIndex = unstable_cache(loadRosterIndexInner, ["wc-roster-index
 
 /** Bust Next.js data cache (call from daily cron). */
 export async function revalidateRosterCache(): Promise<void> {
-  revalidateTag(ROSTER_TAG, { expire: 0 });
+  try {
+    revalidateTag(ROSTER_TAG, { expire: 0 });
+  } catch {
+    /* ignore outside Next request context */
+  }
 }
 
-/** Load roster index — refresh from APIs when cache is stale (>7 days). */
+async function fetchAllSquadsInner(): Promise<Record<string, string[]>> {
+  const stored = await readStored();
+  if (stored?.teams && Object.keys(stored.teams).length > 0) return stored.teams;
+
+  if (!process.env.FOOTBALL_DATA_API_KEY && !process.env.API_FOOTBALL_KEY) return {};
+
+  const teams: Record<string, string[]> = {};
+  const fdTeams = await fetchWcTeams();
+  for (let i = 0; i < fdTeams.length; i++) {
+    const t = fdTeams[i];
+    const code = tlaToCode(t.tla);
+    const squad = await fetchTeamSquad(t.id);
+    if (squad.length > 0) {
+      teams[code] = squad.map((p) => p.name).slice(0, MAX_PLAYERS_PER_TEAM);
+    }
+    if ((i + 1) % 8 === 0) await sleep(650);
+  }
+  return teams;
+}
+
+const cachedSquadMap = unstable_cache(fetchAllSquadsInner, ["wc-squad-map"], {
+  revalidate: 86_400,
+  tags: [ROSTER_TAG],
+});
+
+/** Squad lists — Vercel Data Cache (24h). Cron revalidateTag keeps this warm. */
+export async function getCachedSquads(): Promise<Record<string, string[]>> {
+  try {
+    return await cachedSquadMap();
+  } catch (e) {
+    console.warn("[roster] squad cache miss:", e);
+    return {};
+  }
+}
+
+/** Load roster index — player data pre-warmed by cron; requests never block on APIs. */
 export async function getRosterIndex(force = false): Promise<RosterIndex> {
   if (!force && mem && Date.now() - mem.at < 60_000) return mem.index;
 
-  const index = force ? await loadRosterIndexInner() : await cachedRosterIndex();
-  mem = { at: Date.now(), index };
-  return index;
+  try {
+    const index = force ? await loadRosterIndexInner() : await cachedRosterIndex();
+    mem = { at: Date.now(), index };
+    return index;
+  } catch (e) {
+    console.warn("[roster] index load failed, using static aliases:", e);
+    const index = staticRosterIndex();
+    mem = { at: Date.now(), index };
+    return index;
+  }
 }

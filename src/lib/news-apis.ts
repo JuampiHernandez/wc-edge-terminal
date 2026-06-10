@@ -32,8 +32,16 @@ function filterRelevant(items: RawNewsItem[], index: RosterIndex): RawNewsItem[]
 async function fetchGdelt(): Promise<RawNewsItem[]> {
   const q = encodeURIComponent('("world cup" OR fifa OR "world cup 2026" OR mundial)');
   const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=artlist&format=json&maxrecords=30&timespan=7d&sort=datedesc`;
-  const res = await fetch(url, { headers: { "User-Agent": UA }, next: { revalidate: API_CACHE } });
-  if (!res.ok) throw new Error(`gdelt: HTTP ${res.status}`);
+  const res = await fetch(url, {
+    headers: { "User-Agent": UA },
+    next: { revalidate: API_CACHE },
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!res.ok) {
+    // GDELT rate-limits aggressively — treat as empty, not fatal.
+    if (res.status === 429) return [];
+    throw new Error(`gdelt: HTTP ${res.status}`);
+  }
   const data = (await res.json()) as {
     articles?: { title: string; url: string; seendate: string }[];
   };
