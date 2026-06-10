@@ -56,6 +56,16 @@ const GLOBAL_CAP = 120;
 const FEED_TIMEOUT_MS = 8_000;
 const FEED_BATCH = 6;
 
+async function fetchWithTimeout(url: string, init: RequestInit, ms: number): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function stripTags(s: string): string {
   return s.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 }
@@ -98,11 +108,14 @@ function isFresh(t: number): boolean {
 }
 
 async function fetchFeed(feed: RssFeed, index: RosterIndex): Promise<Signal[]> {
-  const res = await fetch(feed.url, {
-    headers: { Accept: "application/rss+xml, application/xml, text/xml, */*", "User-Agent": UA },
-    next: { revalidate: 1800 },
-    signal: AbortSignal.timeout(FEED_TIMEOUT_MS),
-  });
+  const res = await fetchWithTimeout(
+    feed.url,
+    {
+      headers: { Accept: "application/rss+xml, application/xml, text/xml, */*", "User-Agent": UA },
+      next: { revalidate: 1800 },
+    },
+    FEED_TIMEOUT_MS,
+  );
   if (!res.ok) throw new Error(`${feed.id}: HTTP ${res.status}`);
   const xml = await res.text();
   const cutoff = Date.now() - NEWS_MAX_AGE_MS;

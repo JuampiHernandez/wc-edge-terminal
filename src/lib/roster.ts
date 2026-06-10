@@ -347,11 +347,13 @@ export async function revalidateRosterCache(): Promise<void> {
   }
 }
 
-/** In-memory warm payload set by cron before revalidateTag. */
+/** Stash used to seed Vercel Data Cache during cron (same invocation only). */
+let cronSquads: Record<string, string[]> | null = null;
+/** Fast per-instance read after cron or cache hit. */
 let squadCacheWarm: Record<string, string[]> | null = null;
 
 async function squadCacheInner(): Promise<Record<string, string[]>> {
-  if (squadCacheWarm && Object.keys(squadCacheWarm).length > 0) return squadCacheWarm;
+  if (cronSquads && Object.keys(cronSquads).length > 0) return cronSquads;
   const stored = await readStored();
   if (stored?.teams && Object.keys(stored.teams).length > 0) return stored.teams;
   return {};
@@ -364,11 +366,14 @@ const cachedSquadMap = unstable_cache(squadCacheInner, ["wc-squad-map"], {
 
 /** Squad lists — Vercel Data Cache (24h). Never fetches live APIs on request path. */
 export async function getCachedSquads(): Promise<Record<string, string[]>> {
+  if (squadCacheWarm && Object.keys(squadCacheWarm).length > 0) return squadCacheWarm;
   try {
-    return await cachedSquadMap();
+    const teams = await cachedSquadMap();
+    if (Object.keys(teams).length > 0) squadCacheWarm = teams;
+    return teams;
   } catch (e) {
     console.warn("[roster] squad cache read failed:", e);
-    return squadCacheWarm ?? {};
+    return {};
   }
 }
 
@@ -388,10 +393,11 @@ export async function warmSquadCache(): Promise<Record<string, string[]>> {
     if ((i + 1) % 8 === 0) await sleep(650);
   }
 
+  cronSquads = teams;
   squadCacheWarm = teams;
   await writeStored({ generatedAt: Date.now(), teams, teamUpdatedAt: {} });
   await revalidateRosterCache();
-  return teams;
+  return await cachedSquadMap();
 }
 
 /** Load roster index — player data pre-warmed by cron; requests never block on APIs. */
