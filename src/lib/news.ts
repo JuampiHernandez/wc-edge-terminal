@@ -108,13 +108,14 @@ function isFresh(t: number): boolean {
 }
 
 async function fetchFeed(feed: RssFeed, index: RosterIndex): Promise<Signal[]> {
+  const timeout = feed.teamCode ? 15_000 : FEED_TIMEOUT_MS;
   const res = await fetchWithTimeout(
     feed.url,
     {
       headers: { Accept: "application/rss+xml, application/xml, text/xml, */*", "User-Agent": UA },
       next: { revalidate: 1800 },
     },
-    FEED_TIMEOUT_MS,
+    timeout,
   );
   if (!res.ok) throw new Error(`${feed.id}: HTTP ${res.status}`);
   const xml = await res.text();
@@ -171,7 +172,12 @@ async function fetchRssBatched(index: RosterIndex): Promise<{
 
   // Nation feeds sequentially — each tags a team; avoid BBC rate limits/timeouts.
   for (const feed of nationFeeds) {
+    const failBefore = failed.length;
     await runFeed(feed, index, ok, failed, signals);
+    if (failed.length > failBefore) {
+      failed.pop();
+      await runFeed(feed, index, ok, failed, signals);
+    }
   }
 
   for (let i = 0; i < generalFeeds.length; i += FEED_BATCH) {
