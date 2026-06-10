@@ -11,6 +11,7 @@
     "cron:rosters": "curl -sf -H \"Authorization: Bearer ${CRON_SECRET}\" \"${CRON_URL:-http://localhost:3000}/api/cron/digest?teams=48\""
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "next": "16.2.7",
     "next-auth": "^4.24.14",
     "react": "19.2.4",
