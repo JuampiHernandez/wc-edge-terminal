@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 import { listSubscribers } from "@/lib/subscribers";
 import { nationName } from "@/lib/teams-list";
 import { fetchNewsSignals } from "@/lib/news";
-import { getCachedSquads, refreshRostersBatch, buildIndex, revalidateRosterCache } from "@/lib/roster";
+import { getCachedSquads, refreshRostersBatch, buildIndex, warmSquadCache } from "@/lib/roster";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
       const stored = await refreshRostersBatch(teamLimit);
       const idx = buildIndex(stored);
       roster = { teams: idx.teamCount, players: idx.playerCount, ok: true, refreshed: teamLimit };
-      await revalidateRosterCache();
+      await warmSquadCache();
       const squads = await getCachedSquads();
       roster = { teams: Object.keys(squads).length, players: Object.values(squads).flat().length, ok: true, refreshed: teamLimit };
     } catch (e) {

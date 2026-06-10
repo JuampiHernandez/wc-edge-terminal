@@ -347,10 +347,33 @@ export async function revalidateRosterCache(): Promise<void> {
   }
 }
 
-async function fetchAllSquadsInner(): Promise<Record<string, string[]>> {
+/** In-memory warm payload set by cron before revalidateTag. */
+let squadCacheWarm: Record<string, string[]> | null = null;
+
+async function squadCacheInner(): Promise<Record<string, string[]>> {
+  if (squadCacheWarm && Object.keys(squadCacheWarm).length > 0) return squadCacheWarm;
   const stored = await readStored();
   if (stored?.teams && Object.keys(stored.teams).length > 0) return stored.teams;
+  return {};
+}
 
+const cachedSquadMap = unstable_cache(squadCacheInner, ["wc-squad-map"], {
+  revalidate: 86_400,
+  tags: [ROSTER_TAG],
+});
+
+/** Squad lists — Vercel Data Cache (24h). Never fetches live APIs on request path. */
+export async function getCachedSquads(): Promise<Record<string, string[]>> {
+  try {
+    return await cachedSquadMap();
+  } catch (e) {
+    console.warn("[roster] squad cache read failed:", e);
+    return squadCacheWarm ?? {};
+  }
+}
+
+/** Full squad refresh — cron only (can take minutes). */
+export async function warmSquadCache(): Promise<Record<string, string[]>> {
   if (!process.env.FOOTBALL_DATA_API_KEY && !process.env.API_FOOTBALL_KEY) return {};
 
   const teams: Record<string, string[]> = {};
@@ -364,22 +387,11 @@ async function fetchAllSquadsInner(): Promise<Record<string, string[]>> {
     }
     if ((i + 1) % 8 === 0) await sleep(650);
   }
+
+  squadCacheWarm = teams;
+  await writeStored({ generatedAt: Date.now(), teams, teamUpdatedAt: {} });
+  await revalidateRosterCache();
   return teams;
-}
-
-const cachedSquadMap = unstable_cache(fetchAllSquadsInner, ["wc-squad-map"], {
-  revalidate: 86_400,
-  tags: [ROSTER_TAG],
-});
-
-/** Squad lists — Vercel Data Cache (24h). Cron revalidateTag keeps this warm. */
-export async function getCachedSquads(): Promise<Record<string, string[]>> {
-  try {
-    return await cachedSquadMap();
-  } catch (e) {
-    console.warn("[roster] squad cache miss:", e);
-    return {};
-  }
 }
 
 /** Load roster index — player data pre-warmed by cron; requests never block on APIs. */

@@ -2,7 +2,7 @@
 // Requires CRON_SECRET (same as digest cron).
 
 import { NextResponse } from "next/server";
-import { getCachedSquads, refreshRosters, buildIndex, revalidateRosterCache } from "@/lib/roster";
+import { getCachedSquads, refreshRosters, buildIndex, warmSquadCache } from "@/lib/roster";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -20,7 +20,7 @@ export async function GET(req: Request) {
   try {
     const stored = await refreshRosters();
     const index = buildIndex(stored);
-    await revalidateRosterCache();
+    await warmSquadCache();
     const squads = await getCachedSquads();
     return NextResponse.json({
       ok: true,

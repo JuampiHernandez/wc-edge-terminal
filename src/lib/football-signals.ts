@@ -138,6 +138,7 @@ export async function fetchFootballSignals(): Promise<{
     return { signals: [], note: "no keys configured", ok: false, matches: [] };
   }
 
+  try {
   const signals: Signal[] = [];
   const notes: string[] = [];
 
@@ -147,7 +148,7 @@ export async function fetchFootballSignals(): Promise<{
     notes.push(`${matches.length} fixtures`);
   }
 
-  // Squads from pre-warmed roster cache — covers all nations without live API calls.
+  // Squads from cron-warmed cache (fast read — never hits APIs here).
   const cachedSquads = await getCachedSquads();
   const fixtureTeams = teamsFromFixtures(matches);
   let squadCount = 0;
@@ -158,9 +159,9 @@ export async function fetchFootballSignals(): Promise<{
     signals.push(squadSignal(nationName(code), code, playerNames, "roster-cache"));
     squadCount++;
   }
-  if (squadCount > 0) notes.push(`${squadCount} squads`);
+  if (squadCount > 0) notes.push(`${squadCount} cached squads`);
 
-  // Live squad fetch for teams playing within 3 days when cache is empty.
+  // Live squad fetch for teams playing within 3 days.
   const soon = matches.filter((m) => daysUntil(m.utcDate) <= 3 && daysUntil(m.utcDate) >= 0);
   const teamIds = new Map<number, { name: string; code: string }>();
   for (const m of soon) {
@@ -202,4 +203,8 @@ export async function fetchFootballSignals(): Promise<{
     ok: signals.length > 0,
     matches,
   };
+  } catch (e) {
+    console.error("[football-signals] failed:", e);
+    return { signals: [], note: "fetch failed", ok: false, matches: [] };
+  }
 }
