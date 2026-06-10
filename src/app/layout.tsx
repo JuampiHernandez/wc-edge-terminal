@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "@/components/Providers";
 import { getServerLocale, getServerMessages } from "@/lib/i18n/server";
 import "./globals.css";
@@ -57,6 +58,7 @@ export default async function RootLayout({
       </head>
       <body suppressHydrationWarning className="h-dvh overflow-hidden">
         <Providers locale={locale}>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );
