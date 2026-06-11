@@ -58,8 +58,8 @@ export type Messages = {
     tapHint: string;
     pickCountry: string;
     countriesSelected: (n: number) => string;
-    addGoogle: string;
-    subscribe: string;
+    addToCalendar: string;
+    addToGoogle: string;
     timezoneNote: string;
     matches: string;
     teams: string;
@@ -167,8 +167,8 @@ export const en: Messages = {
     pickCountry: "Pick at least one country to export.",
     countriesSelected: (n: number) =>
       `${n} ${n === 1 ? "country" : "countries"} · group + possible knockout fixtures`,
-    addGoogle: "Add to Google Calendar",
-    subscribe: "Subscribe (Apple / Outlook)",
+    addToCalendar: "Add to your calendar",
+    addToGoogle: "Google Calendar",
     timezoneNote: "Times show in your timezone. Stadium & city are in each event location.",
     matches: "matches",
     teams: "teams",

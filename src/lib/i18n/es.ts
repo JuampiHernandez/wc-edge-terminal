@@ -97,8 +97,8 @@ export const es: Messages = {
     pickCountry: "Elegí al menos un país para exportar.",
     countriesSelected: (n: number) =>
       `${n} ${n === 1 ? "país" : "países"} · fase de grupos + posibles cruces`,
-    addGoogle: "Agregar a Google Calendar",
-    subscribe: "Suscribirse (Apple / Outlook)",
+    addToCalendar: "Agregar a tu calendario",
+    addToGoogle: "Google Calendar",
     timezoneNote: "Los horarios se muestran en tu zona horaria. Estadio y ciudad están en la ubicación de cada evento.",
     matches: "partidos",
     teams: "equipos",

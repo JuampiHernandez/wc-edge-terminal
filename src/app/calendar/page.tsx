@@ -32,9 +32,8 @@ export default function CalendarPage() {
       return { google: "#", webcal: "#" };
     }
     const webcal = `webcal://${host}${icsPath}`;
-    const googleCid = encodeURIComponent(webcal);
     return {
-      google: `https://accounts.google.com/AccountChooser?continue=${encodeURIComponent(`https://calendar.google.com/calendar/r?cid=${googleCid}`)}`,
+      google: `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}`,
       webcal,
     };
   }, [host, icsPath]);
@@ -146,9 +145,7 @@ export default function CalendarPage() {
 
         <div className="space-y-2">
           <a
-            href={links.google}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={links.webcal}
             aria-disabled={!canExport}
             className={`block w-full py-3 px-4 text-[12px] font-mono border rounded-sm transition-colors ${
               canExport
@@ -156,18 +153,20 @@ export default function CalendarPage() {
                 : "border-border text-subtle pointer-events-none opacity-50"
             }`}
           >
-            {t.calendar.addGoogle}
+            {t.calendar.addToCalendar}
           </a>
           <a
-            href={links.webcal}
+            href={links.google}
+            target="_blank"
+            rel="noopener noreferrer"
             aria-disabled={!canExport}
             className={`block w-full py-3 px-4 text-[12px] font-mono border rounded-sm transition-colors ${
               canExport
-                ? "border-border text-text hover:bg-elevated"
+                ? "border-border text-muted hover:bg-elevated hover:text-text"
                 : "border-border text-subtle pointer-events-none opacity-50"
             }`}
           >
-            {t.calendar.subscribe}
+            {t.calendar.addToGoogle}
           </a>
         </div>
 
