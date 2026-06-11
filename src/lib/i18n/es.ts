@@ -90,7 +90,7 @@ export const es: Messages = {
   },
   calendar: {
     title: "Copa Mundial FIFA 2026",
-    subtitle: "Agregá los partidos a tu calendario — todos, o solo los equipos que seguís.",
+    subtitle: "Agregá los partidos a tu calendario",
     allMatches: "Todos los partidos",
     myTeams: "Mis equipos",
     tapHint: "Tocá un país para seleccionar · tocá de nuevo para quitar",
@@ -99,10 +99,10 @@ export const es: Messages = {
       `${n} ${n === 1 ? "país" : "países"} · fase de grupos + posibles cruces`,
     addToCalendar: "Agregar a tu calendario",
     addToGoogle: "Google Calendar",
-    timezoneNote: "Los horarios se muestran en tu zona horaria. Estadio y ciudad están en la ubicación de cada evento.",
+    googleSubscribeNote:
+      "Google puede mostrar una dirección técnica debajo del nombre — es normal para suscripciones desde worldcupterminal.xyz.",
     matches: "partidos",
     teams: "equipos",
-    kickoff: "inicio",
     backToTerminal: "← volver al terminal",
   },
   time: {

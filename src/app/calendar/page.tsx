@@ -6,6 +6,7 @@ import { LocaleToggle } from "@/components/LocaleToggle";
 import { useLocale } from "@/components/LocaleProvider";
 import { WC_NATIONS } from "@/lib/teams-list";
 import { useFollows } from "@/lib/follows";
+import { applyTheme, getStoredTheme } from "@/lib/theme";
 
 type Mode = "all" | "teams";
 
@@ -41,6 +42,14 @@ export default function CalendarPage() {
   const canExport = mode === "all" || follows.length > 0;
 
   useEffect(() => {
+    const previous = getStoredTheme();
+    applyTheme("light");
+    return () => {
+      applyTheme(previous);
+    };
+  }, []);
+
+  useEffect(() => {
     if (mode === "all") {
       setMatchCount(104);
       return;
@@ -64,7 +73,7 @@ export default function CalendarPage() {
   }, [mode, icsPath]);
 
   return (
-    <div className="min-h-dvh bg-bg text-text flex items-center justify-center p-6">
+    <div className="min-h-dvh bg-bg text-text flex flex-col items-center justify-center p-6">
       <main className="w-full max-w-md border border-border bg-panel rounded-sm p-8 text-center relative">
         <div className="absolute top-4 right-4">
           <LocaleToggle />
@@ -168,9 +177,8 @@ export default function CalendarPage() {
           >
             {t.calendar.addToGoogle}
           </a>
+          <p className="text-[9px] text-subtle leading-relaxed px-1">{t.calendar.googleSubscribeNote}</p>
         </div>
-
-        <p className="text-[10px] text-subtle mt-6 leading-relaxed">{t.calendar.timezoneNote}</p>
 
         <div className="mt-8 pt-6 border-t border-border flex justify-around text-[10px] text-subtle">
           <div>
@@ -181,16 +189,13 @@ export default function CalendarPage() {
             <div className="text-lg font-semibold text-text">48</div>
             {t.calendar.teams}
           </div>
-          <div>
-            <div className="text-lg font-semibold text-text">Jun 11</div>
-            {t.calendar.kickoff}
-          </div>
         </div>
 
         <a href="/" className="inline-block mt-8 text-[10px] text-accent hover:underline">
           {t.calendar.backToTerminal}
         </a>
       </main>
+      <p className="mt-4 text-[10px] text-subtle">by juampi</p>
     </div>
   );
 }

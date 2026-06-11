@@ -60,10 +60,9 @@ export type Messages = {
     countriesSelected: (n: number) => string;
     addToCalendar: string;
     addToGoogle: string;
-    timezoneNote: string;
+    googleSubscribeNote: string;
     matches: string;
     teams: string;
-    kickoff: string;
     backToTerminal: string;
   };
   time: { now: string };
@@ -160,7 +159,7 @@ export const en: Messages = {
   },
   calendar: {
     title: "FIFA World Cup 2026",
-    subtitle: "Add matches to your calendar — all of them, or only the teams you follow.",
+    subtitle: "Add matches to your calendar",
     allMatches: "All matches",
     myTeams: "My teams",
     tapHint: "Tap a country to select · tap again to remove",
@@ -169,10 +168,10 @@ export const en: Messages = {
       `${n} ${n === 1 ? "country" : "countries"} · group + possible knockout fixtures`,
     addToCalendar: "Add to your calendar",
     addToGoogle: "Google Calendar",
-    timezoneNote: "Times show in your timezone. Stadium & city are in each event location.",
+    googleSubscribeNote:
+      "Google may show a technical address below the name — that's normal for subscribed feeds from worldcupterminal.xyz.",
     matches: "matches",
     teams: "teams",
-    kickoff: "kickoff",
     backToTerminal: "← back to terminal",
   },
   time: {
