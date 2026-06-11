@@ -7,9 +7,12 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import { fetchNationalSquad, resolveNationalTeamId } from "./api-football";
 import { fetchTeamSquad, fetchWcTeams, tlaToCode } from "./football-data";
 import { nationName, WC_NATIONS } from "./teams-list";
+import fallbackValuations from "@/data/team-valuations.fallback.json";
 import { fetchTransfermarktValuations } from "./transfermarkt-valuations";
 import { TEAMS } from "./worldcup";
 import type { TeamContext, TeamValuation } from "./types";
+
+const VALUATIONS_FALLBACK = fallbackValuations as Record<string, TeamValuation>;
 
 const FILE = path.join(process.cwd(), ".data", "rosters.json");
 const ROSTER_TTL_MS = 7 * 86_400_000;
@@ -268,6 +271,7 @@ export async function refreshRostersBatch(maxTeams = 10): Promise<StoredRoster> 
   stored.generatedAt = now;
   try {
     stored.valuations = await fetchTransfermarktValuations();
+    if (Object.keys(stored.valuations).length > 0) valuationsCacheWarm = stored.valuations;
   } catch (e) {
     console.warn("[roster] valuation refresh failed:", e);
   }
@@ -320,6 +324,7 @@ export async function refreshRosters(): Promise<StoredRoster> {
   const stored: StoredRoster = { generatedAt: now, teams, teamUpdatedAt };
   try {
     stored.valuations = await fetchTransfermarktValuations();
+    if (Object.keys(stored.valuations).length > 0) valuationsCacheWarm = stored.valuations;
   } catch (e) {
     console.warn("[roster] valuation refresh failed:", e);
   }
@@ -365,6 +370,8 @@ export async function revalidateRosterCache(): Promise<void> {
 let cronSquads: Record<string, string[]> | null = null;
 /** Fast per-instance read after cron or cache hit. */
 let squadCacheWarm: Record<string, string[]> | null = null;
+/** Fast per-instance read after cron or live fetch. */
+let valuationsCacheWarm: Record<string, TeamValuation> | null = null;
 
 async function squadCacheInner(): Promise<Record<string, string[]>> {
   if (cronSquads && Object.keys(cronSquads).length > 0) return cronSquads;
@@ -384,20 +391,28 @@ const cachedValuations = unstable_cache(fetchTransfermarktValuations, ["wc-team-
 });
 
 async function loadValuations(stored: StoredRoster | null): Promise<Record<string, TeamValuation>> {
+  if (valuationsCacheWarm && Object.keys(valuationsCacheWarm).length > 0) {
+    return valuationsCacheWarm;
+  }
   if (stored?.valuations && Object.keys(stored.valuations).length > 0) {
+    valuationsCacheWarm = stored.valuations;
     return stored.valuations;
   }
   try {
     const fresh = await cachedValuations();
-    if (stored) {
-      stored.valuations = fresh;
-      await writeStored(stored);
+    if (Object.keys(fresh).length > 0) {
+      valuationsCacheWarm = fresh;
+      if (stored) {
+        stored.valuations = fresh;
+        await writeStored(stored);
+      }
+      return fresh;
     }
-    return fresh;
   } catch (e) {
     console.warn("[roster] valuation fetch failed:", e);
-    return stored?.valuations ?? {};
   }
+  if (Object.keys(VALUATIONS_FALLBACK).length > 0) return VALUATIONS_FALLBACK;
+  return stored?.valuations ?? {};
 }
 
 /** Squad lists — Vercel Data Cache (24h). Never fetches live APIs on request path. */
@@ -424,11 +439,12 @@ export async function getCachedTeamContexts(): Promise<Record<string, TeamContex
   }
 
   const valuations = await loadValuations(stored);
+  const codes = new Set([...Object.keys(squads), ...Object.keys(valuations)]);
   const out: Record<string, TeamContext> = {};
-  for (const [code, players] of Object.entries(squads)) {
+  for (const code of codes) {
     out[code] = {
       code,
-      players,
+      players: squads[code] ?? [],
       generatedAt: stored?.generatedAt,
       valuation: valuations[code],
     };
@@ -457,8 +473,10 @@ export async function warmSquadCache(): Promise<Record<string, string[]>> {
   let valuations: Record<string, TeamValuation> | undefined;
   try {
     valuations = await fetchTransfermarktValuations();
+    if (valuations && Object.keys(valuations).length > 0) valuationsCacheWarm = valuations;
   } catch (e) {
     console.warn("[roster] valuation refresh failed:", e);
+    if (Object.keys(VALUATIONS_FALLBACK).length > 0) valuations = VALUATIONS_FALLBACK;
   }
   await writeStored({ generatedAt: Date.now(), teams, teamUpdatedAt: {}, valuations });
   await revalidateRosterCache();
