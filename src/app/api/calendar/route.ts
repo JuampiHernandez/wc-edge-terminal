@@ -1,10 +1,11 @@
-import { filteredCalendarIcs, fullCalendarIcs, parseTeamQuery } from "@/lib/calendar-ics";
+import { filteredCalendarIcs, fullCalendarIcs, normalizeCalendarIcs, parseTeamQuery } from "@/lib/calendar-ics";
 
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
   const teams = parseTeamQuery(new URL(req.url).searchParams.get("teams"));
-  const body = teams.length > 0 ? filteredCalendarIcs(teams) : fullCalendarIcs();
+  const raw = teams.length > 0 ? filteredCalendarIcs(teams) : fullCalendarIcs();
+  const body = normalizeCalendarIcs(raw);
 
   return new Response(body, {
     headers: {

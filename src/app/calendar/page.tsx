@@ -29,12 +29,15 @@ export default function CalendarPage() {
 
   const links = useMemo(() => {
     if (!host || !icsPath) {
-      return { google: "#", webcal: "#" };
+      return { apple: "#", google: "#" };
     }
-    const webcal = `webcal://${host}${icsPath}`;
+    const httpsUrl = `https://${host}${icsPath}`;
+    // webcal:// is downgraded to http:// on iOS, which Apple Calendar rejects.
+    const isLocal = host.startsWith("localhost") || host.startsWith("127.0.0.1");
+    const apple = `${isLocal ? "webcal" : "webcals"}://${host}${icsPath}`;
     return {
-      google: `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}`,
-      webcal,
+      apple,
+      google: `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(httpsUrl)}`,
     };
   }, [host, icsPath]);
 
@@ -146,7 +149,7 @@ export default function CalendarPage() {
 
         <div className="space-y-2">
           <a
-            href={links.webcal}
+            href={links.apple}
             aria-disabled={!canExport}
             className={`block w-full py-3 px-4 text-[12px] font-mono border rounded-sm transition-colors ${
               canExport
