@@ -99,8 +99,6 @@ export const es: Messages = {
       `${n} ${n === 1 ? "país" : "países"} · fase de grupos + posibles cruces`,
     addToCalendar: "Agregar a tu calendario",
     addToGoogle: "Google Calendar",
-    googleSubscribeNote:
-      "Google puede mostrar una dirección técnica debajo del nombre — es normal para suscripciones desde worldcupterminal.xyz.",
     matches: "partidos",
     teams: "equipos",
     backToTerminal: "← volver al terminal",

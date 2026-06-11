@@ -177,7 +177,6 @@ export default function CalendarPage() {
           >
             {t.calendar.addToGoogle}
           </a>
-          <p className="text-[9px] text-subtle leading-relaxed px-1">{t.calendar.googleSubscribeNote}</p>
         </div>
 
         <div className="mt-8 pt-6 border-t border-border flex justify-around text-[10px] text-subtle">

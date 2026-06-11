@@ -60,7 +60,6 @@ export type Messages = {
     countriesSelected: (n: number) => string;
     addToCalendar: string;
     addToGoogle: string;
-    googleSubscribeNote: string;
     matches: string;
     teams: string;
     backToTerminal: string;
@@ -168,8 +167,6 @@ export const en: Messages = {
       `${n} ${n === 1 ? "country" : "countries"} · group + possible knockout fixtures`,
     addToCalendar: "Add to your calendar",
     addToGoogle: "Google Calendar",
-    googleSubscribeNote:
-      "Google may show a technical address below the name — that's normal for subscribed feeds from worldcupterminal.xyz.",
     matches: "matches",
     teams: "teams",
     backToTerminal: "← back to terminal",
