@@ -7,6 +7,7 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import { fetchNationalSquad, resolveNationalTeamId } from "./api-football";
 import { fetchTeamSquad, fetchWcTeams, tlaToCode } from "./football-data";
 import { nationName, WC_NATIONS } from "./teams-list";
+import { fetchTransfermarktValuations } from "./transfermarkt-valuations";
 import { TEAMS } from "./worldcup";
 import type { TeamContext, TeamValuation } from "./types";
 
@@ -265,6 +266,11 @@ export async function refreshRostersBatch(maxTeams = 10): Promise<StoredRoster> 
   }
 
   stored.generatedAt = now;
+  try {
+    stored.valuations = await fetchTransfermarktValuations();
+  } catch (e) {
+    console.warn("[roster] valuation refresh failed:", e);
+  }
   await writeStored(stored);
   mem = { at: Date.now(), index: buildIndex(stored) };
   try {
@@ -312,6 +318,11 @@ export async function refreshRosters(): Promise<StoredRoster> {
   }
 
   const stored: StoredRoster = { generatedAt: now, teams, teamUpdatedAt };
+  try {
+    stored.valuations = await fetchTransfermarktValuations();
+  } catch (e) {
+    console.warn("[roster] valuation refresh failed:", e);
+  }
   await writeStored(stored);
   mem = { at: Date.now(), index: buildIndex(stored) };
   try {
@@ -367,6 +378,28 @@ const cachedSquadMap = unstable_cache(squadCacheInner, ["wc-squad-map"], {
   tags: [ROSTER_TAG],
 });
 
+const cachedValuations = unstable_cache(fetchTransfermarktValuations, ["wc-team-valuations-v1"], {
+  revalidate: 7 * 86_400,
+  tags: [ROSTER_TAG],
+});
+
+async function loadValuations(stored: StoredRoster | null): Promise<Record<string, TeamValuation>> {
+  if (stored?.valuations && Object.keys(stored.valuations).length > 0) {
+    return stored.valuations;
+  }
+  try {
+    const fresh = await cachedValuations();
+    if (stored) {
+      stored.valuations = fresh;
+      await writeStored(stored);
+    }
+    return fresh;
+  } catch (e) {
+    console.warn("[roster] valuation fetch failed:", e);
+    return stored?.valuations ?? {};
+  }
+}
+
 /** Squad lists — Vercel Data Cache (24h). Never fetches live APIs on request path. */
 export async function getCachedSquads(): Promise<Record<string, string[]>> {
   if (squadCacheWarm && Object.keys(squadCacheWarm).length > 0) return squadCacheWarm;
@@ -380,7 +413,7 @@ export async function getCachedSquads(): Promise<Record<string, string[]>> {
   }
 }
 
-/** Team context for market pages. Valuation is optional until a provider is added. */
+/** Team context for market pages — roster + Transfermarkt squad valuation. */
 export async function getCachedTeamContexts(): Promise<Record<string, TeamContext>> {
   const squads = await getCachedSquads();
   let stored: StoredRoster | null = null;
@@ -390,13 +423,14 @@ export async function getCachedTeamContexts(): Promise<Record<string, TeamContex
     stored = null;
   }
 
+  const valuations = await loadValuations(stored);
   const out: Record<string, TeamContext> = {};
   for (const [code, players] of Object.entries(squads)) {
     out[code] = {
       code,
       players,
       generatedAt: stored?.generatedAt,
-      valuation: stored?.valuations?.[code],
+      valuation: valuations[code],
     };
   }
   return out;
@@ -420,7 +454,13 @@ export async function warmSquadCache(): Promise<Record<string, string[]>> {
 
   cronSquads = teams;
   squadCacheWarm = teams;
-  await writeStored({ generatedAt: Date.now(), teams, teamUpdatedAt: {} });
+  let valuations: Record<string, TeamValuation> | undefined;
+  try {
+    valuations = await fetchTransfermarktValuations();
+  } catch (e) {
+    console.warn("[roster] valuation refresh failed:", e);
+  }
+  await writeStored({ generatedAt: Date.now(), teams, teamUpdatedAt: {}, valuations });
   await revalidateRosterCache();
   return await cachedSquadMap();
 }

@@ -5,7 +5,7 @@ export type Messages = {
   header: { calendar: string; signUp: string; signOut: string; live: string; offline: string };
   theme: { dark: string; light: string; switchToDark: string; switchToLight: string };
   locale: { en: string; es: string; switchToEn: string; switchToEs: string };
-  leftPanel: { markets: string; teams: string; follow: string };
+  leftPanel: { markets: string; teams: string };
   marketList: { searchPlaceholder: string; allEvents: (n: number) => string; noMarkets: string };
   marketDetail: {
     selectMarket: string;
@@ -96,7 +96,6 @@ export const en: Messages = {
   leftPanel: {
     markets: "Markets",
     teams: "Teams",
-    follow: "Follow",
   },
   marketList: {
     searchPlaceholder: "search markets…",

@@ -26,6 +26,7 @@ export async function GET(req: Request) {
       ok: true,
       teams: Object.keys(squads).length || index.teamCount,
       players: Object.values(squads).flat().length || index.playerCount,
+      valuations: Object.keys(stored.valuations ?? {}).length,
       generatedAt: stored.generatedAt,
     });
   } catch (e) {

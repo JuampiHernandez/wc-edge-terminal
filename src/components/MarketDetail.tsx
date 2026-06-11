@@ -78,6 +78,9 @@ function SquadPanel({ teamContext }: { teamContext?: TeamContext }) {
           <div className="text-[11px] text-text tabular-nums">
             {valuation ? fmtEur(valuation) : "sin fuente"}
           </div>
+          {teamContext?.valuation?.source && (
+            <div className="text-[8px] text-subtle">{teamContext.valuation.source}</div>
+          )}
         </div>
       </div>
       {players.length > 0 && (

@@ -3,14 +3,13 @@
 import { useMemo, useState } from "react";
 import type { Market, MarketEvent, Signal } from "@/lib/types";
 import { useLocale } from "@/components/LocaleProvider";
-import { scoreMarket } from "@/lib/edge";
 import { INFO_SIGNAL_KINDS, linksToMarket } from "@/lib/signals";
 import { flagFor, flagForLabel } from "@/lib/worldcup";
 import { fmtUsd } from "@/lib/format";
 
 const DEFAULT_EVENT = "world-cup-winner";
 
-type Row = { market: Market; edge: number; signalCount: number };
+type Row = { market: Market; signalCount: number };
 
 export function MarketList({
   events,
@@ -32,11 +31,10 @@ export function MarketList({
     for (const ev of events) {
       if (eventFilter !== "all" && ev.slug !== eventFilter) continue;
       for (const m of ev.markets) {
-        const score = scoreMarket(m, signals);
         const linked = signals.filter(
           (s) => INFO_SIGNAL_KINDS.includes(s.kind) && linksToMarket(s, m),
         );
-        all.push({ market: m, edge: score.edge, signalCount: linked.length });
+        all.push({ market: m, signalCount: linked.length });
       }
     }
     const q = query.trim().toLowerCase();
@@ -73,11 +71,9 @@ export function MarketList({
         {rows.length === 0 && (
           <div className="py-8 text-center text-[10px] text-subtle">{t.marketList.noMarkets}</div>
         )}
-        {rows.map(({ market: m, edge, signalCount }) => {
+        {rows.map(({ market: m, signalCount }) => {
           const active = m.slug === selectedSlug;
           const pct = Math.round(m.yesPrice * 100);
-          const edgePp = edge * 100;
-          const hasEdge = Math.abs(edgePp) >= 0.5;
           return (
             <button
               key={m.id}
@@ -99,15 +95,6 @@ export function MarketList({
               {signalCount > 0 && (
                 <span className="shrink-0 text-[8px] px-1 py-0.5 rounded-sm border border-accent/40 text-accent">
                   {signalCount}
-                </span>
-              )}
-              {hasEdge && (
-                <span
-                  className="shrink-0 text-[9px] font-semibold tabular-nums w-9 text-right"
-                  style={{ color: edgePp >= 0 ? "var(--pos)" : "var(--neg)" }}
-                >
-                  {edgePp >= 0 ? "+" : ""}
-                  {edgePp.toFixed(1)}
                 </span>
               )}
               <span className="shrink-0 text-[12px] font-semibold tabular-nums w-9 text-right text-text">
