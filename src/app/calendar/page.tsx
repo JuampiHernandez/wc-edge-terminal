@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { LocaleToggle } from "@/components/LocaleToggle";
 import { useLocale } from "@/components/LocaleProvider";
 import { WC_NATIONS } from "@/lib/teams-list";
@@ -9,22 +9,16 @@ import { useFollows } from "@/lib/follows";
 
 type Mode = "all" | "teams";
 
-function isIos(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent);
-}
-
 export default function CalendarPage() {
   const { t } = useLocale();
   const [mode, setMode] = useState<Mode>("all");
   const [matchCount, setMatchCount] = useState<number | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
   const { follows, toggle } = useFollows();
 
   const icsPath = useMemo(() => {
-    if (mode === "all") return "/api/calendar.ics";
+    if (mode === "all") return "/api/calendar";
     if (follows.length === 0) return null;
-    return `/api/calendar.ics?teams=${follows.sort().join(",")}`;
+    return `/api/calendar?teams=${follows.sort().join(",")}`;
   }, [mode, follows]);
 
   const host = useSyncExternalStore(
@@ -35,40 +29,16 @@ export default function CalendarPage() {
 
   const links = useMemo(() => {
     if (!host || !icsPath) {
-      return { https: "#", webcal: "#", google: "#" };
+      return { google: "#", webcal: "#" };
     }
-    const httpsUrl = `https://${host}${icsPath}`;
-    const webcalUrl = `webcal://${host}${icsPath}`;
+    const webcal = `webcal://${host}${icsPath}`;
     return {
-      https: httpsUrl,
-      webcal: webcalUrl,
-      google: `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcalUrl)}`,
+      google: `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}`,
+      webcal,
     };
   }, [host, icsPath]);
 
   const canExport = mode === "all" || follows.length > 0;
-
-  const handleAppleCalendar = useCallback(async () => {
-    if (!canExport || links.https === "#") return;
-
-    if (isIos()) {
-      try {
-        await navigator.clipboard.writeText(links.https);
-        setToast(t.calendar.iosCopied);
-      } catch {
-        window.prompt(t.calendar.iosSubscribePrompt, links.https);
-      }
-      return;
-    }
-
-    window.location.href = links.webcal;
-  }, [canExport, links.https, links.webcal, t.calendar.iosCopied, t.calendar.iosSubscribePrompt]);
-
-  useEffect(() => {
-    if (!toast) return;
-    const id = window.setTimeout(() => setToast(null), 9000);
-    return () => window.clearTimeout(id);
-  }, [toast]);
 
   useEffect(() => {
     if (mode === "all") {
@@ -175,18 +145,17 @@ export default function CalendarPage() {
         </div>
 
         <div className="space-y-2">
-          <button
-            type="button"
-            onClick={handleAppleCalendar}
-            disabled={!canExport}
+          <a
+            href={links.webcal}
+            aria-disabled={!canExport}
             className={`block w-full py-3 px-4 text-[12px] font-mono border rounded-sm transition-colors ${
               canExport
                 ? "border-accent bg-accent/15 text-accent hover:bg-accent/25"
-                : "border-border text-subtle opacity-50 cursor-not-allowed"
+                : "border-border text-subtle pointer-events-none opacity-50"
             }`}
           >
             {t.calendar.addToCalendar}
-          </button>
+          </a>
           <a
             href={links.google}
             target="_blank"
@@ -201,12 +170,6 @@ export default function CalendarPage() {
             {t.calendar.addToGoogle}
           </a>
         </div>
-
-        {toast && (
-          <p className="mt-3 text-[10px] text-accent leading-snug" role="status">
-            {toast}
-          </p>
-        )}
 
         <div className="mt-8 pt-6 border-t border-border flex justify-around text-[10px] text-subtle">
           <div>

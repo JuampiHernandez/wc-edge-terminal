@@ -21,11 +21,7 @@ export async function middleware(request: NextRequest) {
     });
   }
 
-  if (
-    request.nextUrl.pathname === "/api/terminal" ||
-    request.nextUrl.pathname === "/api/cron/digest" ||
-    request.nextUrl.pathname === "/api/calendar"
-  ) {
+  if (request.nextUrl.pathname === "/api/terminal" || request.nextUrl.pathname === "/api/cron/digest") {
     return response;
   }
 

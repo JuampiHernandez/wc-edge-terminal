@@ -151,31 +151,6 @@ export function filterEventsByTeams(events: IcsEvent[], teamCodes: string[]): Ic
   });
 }
 
-function foldIcsLine(line: string): string {
-  const bytes = Buffer.from(line, "utf8");
-  if (bytes.length <= 75) return line;
-
-  const chunks: string[] = [];
-  let offset = 0;
-  while (offset < bytes.length) {
-    const limit = chunks.length === 0 ? 75 : 74;
-    let end = Math.min(offset + limit, bytes.length);
-    while (end > offset && (bytes[end] & 0xc0) === 0x80) end--;
-    chunks.push(bytes.subarray(offset, end).toString("utf8"));
-    offset = end;
-  }
-  return chunks.join("\r\n ");
-}
-
-/** RFC 5545 line folding for Apple Calendar and other strict clients. */
-export function normalizeCalendarIcs(ics: string): string {
-  return ics
-    .replace(/\r?\n/g, "\r\n")
-    .split("\r\n")
-    .map((line) => (line.startsWith(" ") ? line : foldIcsLine(line)))
-    .join("\r\n");
-}
-
 export function buildIcs(events: IcsEvent[], calName: string, calDesc: string): string {
   const header = [
     "BEGIN:VCALENDAR",
@@ -189,7 +164,7 @@ export function buildIcs(events: IcsEvent[], calName: string, calDesc: string): 
   ].join("\r\n");
 
   const body = events.map((e) => e.block).join("\r\n");
-  return normalizeCalendarIcs(`${header}\r\n${body}\r\nEND:VCALENDAR\r\n`);
+  return `${header}\r\n${body}\r\nEND:VCALENDAR\r\n`;
 }
 
 export function fullCalendarIcs(): string {
