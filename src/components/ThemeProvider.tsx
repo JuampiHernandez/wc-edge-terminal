@@ -4,9 +4,10 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   applyTheme,
-  CALENDAR_THEME,
+  getCalendarEntryTheme,
   getStoredTheme,
   isCalendarPath,
+  markAppVisited,
   THEME_STORAGE_KEY,
   type Theme,
 } from "@/lib/theme";
@@ -25,8 +26,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => getStoredTheme());
 
   useEffect(() => {
+    if (!onCalendar) {
+      markAppVisited();
+    }
+  }, [onCalendar]);
+
+  useEffect(() => {
     if (onCalendar) {
-      applyTheme(CALENDAR_THEME);
+      applyTheme(getCalendarEntryTheme());
       return;
     }
     applyTheme(theme);

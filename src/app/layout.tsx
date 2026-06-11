@@ -52,7 +52,7 @@ export default async function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{if(location.pathname==="/calendar"||location.pathname.indexOf("/calendar/")===0){document.documentElement.setAttribute("data-theme","light");return}var t=localStorage.getItem("wc-edge-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}})();`,
+            __html: `(function(){try{var isCal=location.pathname==="/calendar"||location.pathname.indexOf("/calendar/")===0;if(isCal){var fromApp=false;try{fromApp=sessionStorage.getItem("wc-from-app")==="1"||(document.referrer&&new URL(document.referrer).origin===location.origin)}catch(e){}if(fromApp){var t=localStorage.getItem("wc-edge-theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);return}}document.documentElement.setAttribute("data-theme","light");return}var t=localStorage.getItem("wc-edge-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}})();`,
           }}
         />
       </head>
