@@ -99,6 +99,9 @@ export const es: Messages = {
       `${n} ${n === 1 ? "país" : "países"} · fase de grupos + posibles cruces`,
     addToCalendar: "Agregar a tu calendario",
     addToGoogle: "Google Calendar",
+    iosCopied:
+      "Link HTTPS copiado. En Calendario: Calendarios → Agregar calendario → Agregar calendario suscripto → pegá la URL.",
+    iosSubscribePrompt: "Pegá esta URL en Calendario → Agregar calendario suscripto:",
     matches: "partidos",
     teams: "equipos",
     backToTerminal: "← volver al terminal",

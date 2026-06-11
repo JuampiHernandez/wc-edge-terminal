@@ -60,6 +60,8 @@ export type Messages = {
     countriesSelected: (n: number) => string;
     addToCalendar: string;
     addToGoogle: string;
+    iosCopied: string;
+    iosSubscribePrompt: string;
     matches: string;
     teams: string;
     backToTerminal: string;
@@ -167,6 +169,9 @@ export const en: Messages = {
       `${n} ${n === 1 ? "country" : "countries"} · group + possible knockout fixtures`,
     addToCalendar: "Add to your calendar",
     addToGoogle: "Google Calendar",
+    iosCopied:
+      "HTTPS link copied. In Calendar: Calendars → Add Calendar → Add Subscription Calendar → paste the URL.",
+    iosSubscribePrompt: "Paste this URL in Calendar → Add Subscription Calendar:",
     matches: "matches",
     teams: "teams",
     backToTerminal: "← back to terminal",
