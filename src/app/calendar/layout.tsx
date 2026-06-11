@@ -22,14 +22,5 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function CalendarLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `document.documentElement.setAttribute("data-theme","light");`,
-        }}
-      />
-      {children}
-    </>
-  );
+  return children;
 }

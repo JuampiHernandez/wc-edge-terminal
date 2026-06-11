@@ -6,7 +6,6 @@ import { LocaleToggle } from "@/components/LocaleToggle";
 import { useLocale } from "@/components/LocaleProvider";
 import { WC_NATIONS } from "@/lib/teams-list";
 import { useFollows } from "@/lib/follows";
-import { applyTheme, getStoredTheme } from "@/lib/theme";
 
 type Mode = "all" | "teams";
 
@@ -40,14 +39,6 @@ export default function CalendarPage() {
   }, [host, icsPath]);
 
   const canExport = mode === "all" || follows.length > 0;
-
-  useEffect(() => {
-    const previous = getStoredTheme();
-    applyTheme("light");
-    return () => {
-      applyTheme(previous);
-    };
-  }, []);
 
   useEffect(() => {
     if (mode === "all") {

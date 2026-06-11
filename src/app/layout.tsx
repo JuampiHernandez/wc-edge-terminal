@@ -52,7 +52,7 @@ export default async function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("wc-edge-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}})();`,
+            __html: `(function(){try{if(location.pathname==="/calendar"||location.pathname.indexOf("/calendar/")===0){document.documentElement.setAttribute("data-theme","light");return}var t=localStorage.getItem("wc-edge-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}})();`,
           }}
         />
       </head>
