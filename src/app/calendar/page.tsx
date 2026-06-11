@@ -64,8 +64,9 @@ export default function CalendarPage() {
   }, [mode, icsPath]);
 
   return (
-    <div className="min-h-dvh bg-bg text-text flex flex-col items-center justify-center p-6">
+    <div className="min-h-dvh bg-bg text-text flex items-center justify-center p-6">
       <main className="w-full max-w-md border border-border bg-panel rounded-sm p-8 text-center relative">
+        <p className="absolute top-4 left-4 text-[10px] text-subtle">by juampi</p>
         <div className="absolute top-4 right-4">
           <LocaleToggle />
         </div>
@@ -185,7 +186,6 @@ export default function CalendarPage() {
           {t.calendar.backToTerminal}
         </a>
       </main>
-      <p className="mt-4 text-[10px] text-subtle">by juampi</p>
     </div>
   );
 }
