@@ -38,7 +38,9 @@ export function scoreMarket(market: Market, signals: Signal[]): EdgeScore {
   const fairPrice = clamp(market.yesPrice + adjPp / 100, 0.005, 0.995);
   return {
     marketSlug: market.slug,
+    eventSlug: market.eventSlug,
     label: market.label,
+    teamCode: market.teamCode,
     eventTitle: market.eventTitle,
     marketPrice: market.yesPrice,
     fairPrice,

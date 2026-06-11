@@ -3,6 +3,8 @@
 // Signal, with nations/players resolved via roster index + team aliases.
 // Stories older than 7 days are dropped. JSON APIs merged from news-apis.ts.
 
+import { promises as fs } from "fs";
+import path from "path";
 import type { Signal } from "./types";
 import {
   getRosterIndex,
@@ -10,8 +12,9 @@ import {
   NEWS_MAX_AGE_MS,
   type RosterIndex,
 } from "./roster";
-import { rawToSignal } from "./news-build";
+import { hashId, rawToSignal } from "./news-build";
 import { fetchApiNewsSignals } from "./news-apis";
+import { attachCachedNewsContexts } from "./news-enrichment";
 import { resolveTeam } from "./worldcup";
 
 type RssFeed = {
@@ -55,6 +58,39 @@ const UA = "WC-Edge-Terminal/1.0 (RSS reader)";
 const GLOBAL_CAP = 120;
 const FEED_TIMEOUT_MS = 8_000;
 const FEED_BATCH = 6;
+const NATION_FEED_BATCH = 4;
+const SNAPSHOT_FILE = path.join(process.cwd(), ".data", "news-signals.json");
+const SNAPSHOT_TTL_MS = 6 * 60 * 60_000;
+
+export type NewsSignalsResult = {
+  signals: Signal[];
+  ok: string[];
+  failed: string[];
+  apiOk?: string[];
+  apiFailed?: string[];
+  rosterNote?: string;
+  cachedAt?: number;
+};
+
+async function writeSnapshot(result: NewsSignalsResult): Promise<void> {
+  try {
+    await fs.mkdir(path.dirname(SNAPSHOT_FILE), { recursive: true });
+    await fs.writeFile(SNAPSHOT_FILE, JSON.stringify({ ...result, cachedAt: Date.now() }, null, 2));
+  } catch {
+    // Best effort local/serverless cache. Production durability should move to Supabase/KV.
+  }
+}
+
+export async function readNewsSnapshot(maxAgeMs = SNAPSHOT_TTL_MS): Promise<NewsSignalsResult | null> {
+  try {
+    const raw = await fs.readFile(SNAPSHOT_FILE, "utf8");
+    const parsed = JSON.parse(raw) as NewsSignalsResult;
+    if (!parsed.cachedAt || Date.now() - parsed.cachedAt > maxAgeMs) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
 
 async function fetchWithTimeout(url: string, init: RequestInit, ms: number): Promise<Response> {
   const ctrl = new AbortController();
@@ -129,7 +165,7 @@ async function fetchFeed(feed: RssFeed, index: RosterIndex): Promise<Signal[]> {
     .map((it) =>
       rawToSignal(
         {
-          id: `news_${feed.id}_${it.guid.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40)}`,
+          id: `news_${feed.id}_${hashId(it.guid)}`,
           title: it.title,
           url: it.link,
           t: it.t,
@@ -170,13 +206,16 @@ async function fetchRssBatched(index: RosterIndex): Promise<{
   const nationFeeds = NEWS_FEEDS.filter((f) => f.teamCode);
   const generalFeeds = NEWS_FEEDS.filter((f) => !f.teamCode);
 
-  // Nation feeds sequentially — each tags a team; avoid BBC rate limits/timeouts.
-  for (const feed of nationFeeds) {
-    const failBefore = failed.length;
-    await runFeed(feed, index, ok, failed, signals);
-    if (failed.length > failBefore) {
-      failed.pop();
-      await runFeed(feed, index, ok, failed, signals);
+  // Nation feeds tag teams directly. Run in small batches to keep cold loads fast
+  // without hammering BBC with all country feeds at once.
+  for (let i = 0; i < nationFeeds.length; i += NATION_FEED_BATCH) {
+    const batch = nationFeeds.slice(i, i + NATION_FEED_BATCH);
+    const failedBefore = failed.length;
+    await Promise.all(batch.map((f) => runFeed(f, index, ok, failed, signals)));
+    const retry = failed.splice(failedBefore);
+    if (retry.length > 0) {
+      const retryFeeds = batch.filter((f) => retry.includes(f.id));
+      await Promise.all(retryFeeds.map((f) => runFeed(f, index, ok, failed, signals)));
     }
   }
 
@@ -188,14 +227,7 @@ async function fetchRssBatched(index: RosterIndex): Promise<{
   return { signals, ok, failed };
 }
 
-export async function fetchNewsSignals(): Promise<{
-  signals: Signal[];
-  ok: string[];
-  failed: string[];
-  apiOk?: string[];
-  apiFailed?: string[];
-  rosterNote?: string;
-}> {
+export async function fetchNewsSignals(): Promise<NewsSignalsResult> {
   try {
     const index = await getRosterIndex();
     const [rssResults, apiResults] = await Promise.all([
@@ -206,7 +238,7 @@ export async function fetchNewsSignals(): Promise<{
     const merged: Signal[] = [...apiResults.signals, ...rssResults.signals];
 
     const seen = new Set<string>();
-    const signals = merged
+    const deduped = merged
       .filter((s) => isFresh(s.t))
       .sort((a, b) => b.t - a.t)
       .filter((s) => {
@@ -214,15 +246,22 @@ export async function fetchNewsSignals(): Promise<{
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
-      })
-      .slice(0, GLOBAL_CAP);
+      });
+
+    // Team-tagged items are the only ones that link to nation markets — never
+    // let high-volume untagged wires (GDELT/Currents/…) push them past the cap.
+    const tagged = deduped.filter((s) => (s.entities.teams?.length ?? 0) > 0);
+    const untagged = deduped.filter((s) => (s.entities.teams?.length ?? 0) === 0);
+    const signals = await attachCachedNewsContexts([...tagged.slice(0, GLOBAL_CAP), ...untagged]
+      .slice(0, GLOBAL_CAP)
+      .sort((a, b) => b.t - a.t));
 
     const rosterNote =
       index.playerCount > 0
         ? `${index.playerCount} players · ${index.teamCount} squads`
         : "aliases only (cron warms player rosters)";
 
-    return {
+    const result = {
       signals,
       ok: rssResults.ok,
       failed: rssResults.failed,
@@ -230,6 +269,8 @@ export async function fetchNewsSignals(): Promise<{
       apiFailed: apiResults.failed,
       rosterNote,
     };
+    await writeSnapshot(result);
+    return result;
   } catch (e) {
     console.error("[news] fetchNewsSignals failed:", e);
     return { signals: [], ok: [], failed: ["all"], apiFailed: ["all"] };

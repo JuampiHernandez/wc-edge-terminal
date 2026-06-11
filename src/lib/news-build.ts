@@ -3,6 +3,13 @@
 import type { Signal, SignalKind } from "./types";
 import { matchHeadlineEntities, type RosterIndex } from "./roster";
 
+/** Short stable hash so IDs built from long URLs/guids never collide after truncation. */
+export function hashId(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+
 export type RawNewsItem = {
   id: string;
   title: string;

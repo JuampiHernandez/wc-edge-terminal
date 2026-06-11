@@ -72,14 +72,14 @@ export async function fetchVenueWeather(): Promise<VenueWeather[]> {
  * actually edge-relevant (extreme heat, real rain, strong wind, high altitude)
  * so the feed stays signal, not noise.
  */
-export function weatherSignals(weather: VenueWeather[], linkedTeams: string[] = []): Signal[] {
+export function weatherSignals(weather: VenueWeather[], teamsByVenue: Record<string, string[]> = {}): Signal[] {
   const out: Signal[] = [];
   const now = Date.now();
-  const teams = [...new Set(linkedTeams)];
 
   for (const w of weather) {
     const notes: string[] = [];
     let severity: 1 | 2 | 3 = 1;
+    const teams = [...new Set(teamsByVenue[w.venueId] ?? [])];
 
     if (Number.isFinite(w.tempC) && w.tempC >= 32) {
       notes.push(`${Math.round(w.tempC)}°C heat`);

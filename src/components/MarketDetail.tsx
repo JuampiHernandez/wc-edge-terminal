@@ -1,6 +1,6 @@
 "use client";
 
-import type { Market, Signal, SignalKind } from "@/lib/types";
+import type { Market, Signal, SignalKind, TeamContext } from "@/lib/types";
 import { useLocale } from "@/components/LocaleProvider";
 import { scoreMarket, signalsForMarket } from "@/lib/edge";
 import { INFO_SIGNAL_KINDS } from "@/lib/signals";
@@ -18,6 +18,8 @@ const GROUP_DEFS: { key: "availability" | "schedule" | "conditions" | "news"; ki
 function SignalRow({ s }: { s: Signal }) {
   const { locale, t } = useLocale();
   const meta = localizedKindMeta(locale, s.kind);
+  const primary = s.context ?? s.headline;
+  const secondary = s.context ? s.headline : s.detail;
   return (
     <a
       href={s.url}
@@ -31,8 +33,8 @@ function SignalRow({ s }: { s: Signal }) {
         {meta.glyph}
       </span>
       <div className="flex-1 min-w-0">
-        <div className="text-[11px] text-text leading-snug">{s.headline}</div>
-        {s.detail && <div className="text-[9px] text-subtle truncate">{s.detail}</div>}
+        <div className="text-[11px] text-text leading-snug">{primary}</div>
+        {secondary && <div className="text-[9px] text-subtle truncate">{secondary}</div>}
       </div>
       <div className="shrink-0 text-right">
         {s.priceImpact && (
@@ -49,8 +51,55 @@ function SignalRow({ s }: { s: Signal }) {
   );
 }
 
-export function MarketDetail({ market, signals }: { market: Market | null; signals: Signal[] }) {
-  const { locale, t } = useLocale();
+function fmtEur(value: number): string {
+  if (value >= 1_000_000_000) return `€${(value / 1_000_000_000).toFixed(1)}B`;
+  if (value >= 1_000_000) return `€${(value / 1_000_000).toFixed(0)}M`;
+  if (value >= 1_000) return `€${(value / 1_000).toFixed(0)}K`;
+  return `€${value.toFixed(0)}`;
+}
+
+function SquadPanel({ teamContext }: { teamContext?: TeamContext }) {
+  const players = teamContext?.players ?? [];
+  const valuation = teamContext?.valuation?.totalEur;
+
+  return (
+    <div className="border-b border-border shrink-0 px-4 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <div className="text-[9px] uppercase tracking-[0.2em] text-accent">Plantilla</div>
+          <div className="text-[9px] text-subtle">
+            {players.length > 0
+              ? `${players.length} jugadores en cache`
+              : "sin plantilla en cache; el cron la precalienta"}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-[8px] uppercase tracking-[0.18em] text-subtle">valoración</div>
+          <div className="text-[11px] text-text tabular-nums">
+            {valuation ? fmtEur(valuation) : "sin fuente"}
+          </div>
+        </div>
+      </div>
+      {players.length > 0 && (
+        <div className="mt-2 text-[9px] text-subtle leading-relaxed">
+          {players.slice(0, 14).join(" · ")}
+          {players.length > 14 ? ` · +${players.length - 14}` : ""}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function MarketDetail({
+  market,
+  signals,
+  teamContext,
+}: {
+  market: Market | null;
+  signals: Signal[];
+  teamContext?: TeamContext;
+}) {
+  const { t } = useLocale();
 
   if (!market) {
     return (
@@ -115,6 +164,8 @@ export function MarketDetail({ market, signals }: { market: Market | null; signa
           )}
         </div>
       </div>
+
+      {market.teamCode && <SquadPanel teamContext={teamContext} />}
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-2">
         <div className="text-[10px] uppercase tracking-[0.25em] text-accent mb-1">

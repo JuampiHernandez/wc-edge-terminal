@@ -15,7 +15,7 @@ export function MispricingBoard({
   selectedSlug: string | null;
 }) {
   const { t } = useLocale();
-  const top = edges.slice(0, 24);
+  const top = dedupeEdges(edges).slice(0, 24);
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -61,4 +61,21 @@ export function MispricingBoard({
       </div>
     </div>
   );
+}
+
+function dedupeEdges(edges: EdgeScore[]): EdgeScore[] {
+  const best = new Map<string, EdgeScore>();
+  for (const edge of edges) {
+    const key = edge.teamCode ?? edge.label.toLowerCase();
+    const prev = best.get(key);
+    if (!prev) {
+      best.set(key, edge);
+      continue;
+    }
+    const edgeAbs = Math.abs(edge.edge);
+    const prevAbs = Math.abs(prev.edge);
+    const preferWinner = edge.eventSlug === "world-cup-winner" && prev.eventSlug !== "world-cup-winner";
+    if (edgeAbs > prevAbs || (edgeAbs === prevAbs && preferWinner)) best.set(key, edge);
+  }
+  return [...best.values()].sort((a, b) => Math.abs(b.edge) - Math.abs(a.edge));
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTerminal } from "@/lib/useTerminal";
 import { rankEdges } from "@/lib/edge";
 import { linksToMarket } from "@/lib/signals";
@@ -22,16 +22,19 @@ export function Terminal() {
 
   const edges = useMemo(() => rankEdges(data.events, data.signals), [data.events, data.signals]);
 
-  useEffect(() => {
-    if (selectedSlug || markets.length === 0) return;
+  const defaultSelectedSlug = useMemo(() => {
+    if (markets.length === 0) return null;
     const winner = data.events.find((e) => e.slug === "world-cup-winner");
     const top = winner?.markets[0];
-    setSelectedSlug(top?.slug ?? markets[0]?.slug ?? null);
-  }, [selectedSlug, markets, data.events]);
+    return top?.slug ?? markets[0]?.slug ?? null;
+  }, [markets, data.events]);
+
+  const effectiveSelectedSlug =
+    selectedSlug && markets.some((m) => m.slug === selectedSlug) ? selectedSlug : defaultSelectedSlug;
 
   const selected = useMemo(
-    () => markets.find((m) => m.slug === selectedSlug) ?? null,
-    [markets, selectedSlug],
+    () => markets.find((m) => m.slug === effectiveSelectedSlug) ?? null,
+    [markets, effectiveSelectedSlug],
   );
 
   function jumpFromSignal(s: Signal) {
@@ -50,13 +53,17 @@ export function Terminal() {
           <LeftPanel
             events={data.events}
             signals={data.signals}
-            selectedSlug={selectedSlug}
+            selectedSlug={effectiveSelectedSlug}
             onSelect={setSelectedSlug}
           />
         </aside>
 
         <section className="terminal-col terminal-col-center">
-          <MarketDetail market={selected} signals={data.signals} />
+          <MarketDetail
+            market={selected}
+            signals={data.signals}
+            teamContext={selected?.teamCode ? data.teams[selected.teamCode] : undefined}
+          />
         </section>
 
         <aside className="terminal-col terminal-col-right hidden lg:flex">
@@ -65,7 +72,7 @@ export function Terminal() {
       </div>
 
       <footer className="terminal-footer">
-        <MispricingBoard edges={edges} onSelect={setSelectedSlug} selectedSlug={selectedSlug} />
+        <MispricingBoard edges={edges} onSelect={setSelectedSlug} selectedSlug={effectiveSelectedSlug} />
       </footer>
     </div>
   );

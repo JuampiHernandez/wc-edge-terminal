@@ -1,25 +1,49 @@
 "use client";
 
-import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useEffect, useMemo, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 import { useLocale } from "@/components/LocaleProvider";
 import { WC_NATIONS } from "@/lib/teams-list";
 import { useFollows } from "@/lib/follows";
+import { createClient } from "@/lib/supabase/client";
 
 export function TeamFollow() {
-  const { follows, toggle } = useFollows();
-  const { data: session, status } = useSession();
+  const { follows, toggle, setAll } = useFollows();
+  const [user, setUser] = useState<User | null>(null);
   const { t } = useLocale();
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/follow")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { teams?: string[] } | null) => {
+        if (data?.teams && data.teams.length > 0) setAll(data.teams);
+      })
+      .catch(() => {});
+  }, [user, setAll]);
 
   const filtered = WC_NATIONS.filter((n) =>
     n.name.toLowerCase().includes(query.trim().toLowerCase()),
   );
 
   async function saveDigest() {
-    if (status !== "authenticated") {
+    if (!user) {
       setMsg(t.teamFollow.signUpForDigest);
       return;
     }

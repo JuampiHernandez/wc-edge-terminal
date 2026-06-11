@@ -3,7 +3,7 @@
 
 import type { Signal } from "./types";
 import { headlineIsRelevant, NEWS_MAX_AGE_MS, type RosterIndex } from "./roster";
-import { rawToSignal, type RawNewsItem } from "./news-build";
+import { hashId, rawToSignal, type RawNewsItem } from "./news-build";
 
 const API_CACHE = 3600;
 const UA = "WC-Edge-Terminal/1.0";
@@ -21,7 +21,7 @@ function redditUa(): string {
 }
 
 function slugId(prefix: string, s: string): string {
-  return `${prefix}_${s.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48)}`;
+  return `${prefix}_${hashId(s)}`;
 }
 
 function filterRelevant(items: RawNewsItem[], index: RosterIndex): RawNewsItem[] {

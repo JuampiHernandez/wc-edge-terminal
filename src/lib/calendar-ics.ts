@@ -9,6 +9,7 @@ export type IcsEvent = {
   matchNum: number;
   summary: string;
   description: string;
+  location: string;
   teamCodes: string[];
 };
 
@@ -18,6 +19,10 @@ const ICS_PATH = path.join(process.cwd(), "public/world_cup_2026.ics");
 function field(block: string, name: string): string {
   const re = new RegExp(`^${name}:(.*)$`, "m");
   return block.match(re)?.[1]?.trim() ?? "";
+}
+
+function unescapeIcs(s: string): string {
+  return s.replace(/\\,/g, ",").replace(/\\;/g, ";").replace(/\\n/gi, "\n");
 }
 
 function stripFlags(s: string): string {
@@ -79,6 +84,7 @@ export function parseIcsEvents(ics = readFileSync(ICS_PATH, "utf8")): IcsEvent[]
         matchNum,
         summary: field(block, "SUMMARY"),
         description,
+        location: unescapeIcs(field(block, "LOCATION")),
         teamCodes: teamsFromSummary(field(block, "SUMMARY")),
       };
     });

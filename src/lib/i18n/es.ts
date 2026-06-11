@@ -27,6 +27,7 @@ export const es: Messages = {
   },
   leftPanel: {
     markets: "Mercados",
+    teams: "Equipos",
     follow: "Seguir",
   },
   marketList: {

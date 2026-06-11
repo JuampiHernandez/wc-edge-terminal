@@ -22,7 +22,8 @@ function daysUntil(iso: string): number {
 }
 
 function fixtureSignals(matches: FdMatch[]): Signal[] {
-  return matches.map((m): Signal => {
+  // Knockout slots before qualification have TBD (null) teams — nothing to signal yet.
+  return matches.filter((m) => m.homeTeam.name && m.awayTeam.name).map((m): Signal => {
     const home = tlaToCode(m.homeTeam.tla);
     const away = tlaToCode(m.awayTeam.tla);
     const gs = groupSlug(m.group);
@@ -50,7 +51,7 @@ function fixtureSignals(matches: FdMatch[]): Signal[] {
           ? `Kickoff in ${days} day${days === 1 ? "" : "s"}. Schedule congestion and travel affect squad rotation.`
           : "Match day.",
       source: "football-data.org",
-      entities: { teams: [home, away], venue: undefined },
+      entities: { teams: [home, away].filter(Boolean), venue: m.venueId },
       marketSlugs: slugs,
     };
   });
@@ -119,7 +120,22 @@ export function teamsFromFixtures(matches: FdMatch[], withinDays = 45): string[]
     codes.add(tlaToCode(m.homeTeam.tla));
     codes.add(tlaToCode(m.awayTeam.tla));
   }
+  codes.delete("");
   return [...codes];
+}
+
+/** Upcoming fixture teams grouped by host venue. Used to scope weather alerts. */
+export function teamsByVenueFromFixtures(matches: FdMatch[], withinDays = 45): Record<string, string[]> {
+  const byVenue: Record<string, Set<string>> = {};
+  for (const m of matches) {
+    if (!m.venueId || daysUntil(m.utcDate) < 0 || daysUntil(m.utcDate) > withinDays) continue;
+    const home = tlaToCode(m.homeTeam.tla);
+    const away = tlaToCode(m.awayTeam.tla);
+    byVenue[m.venueId] ??= new Set<string>();
+    if (home) byVenue[m.venueId].add(home);
+    if (away) byVenue[m.venueId].add(away);
+  }
+  return Object.fromEntries(Object.entries(byVenue).map(([venueId, teams]) => [venueId, [...teams]]));
 }
 
 /**
@@ -165,8 +181,10 @@ export async function fetchFootballSignals(): Promise<{
   const soon = matches.filter((m) => daysUntil(m.utcDate) <= 3 && daysUntil(m.utcDate) >= 0);
   const teamIds = new Map<number, { name: string; code: string }>();
   for (const m of soon) {
-    teamIds.set(m.homeTeam.id, { name: m.homeTeam.name, code: tlaToCode(m.homeTeam.tla) });
-    teamIds.set(m.awayTeam.id, { name: m.awayTeam.name, code: tlaToCode(m.awayTeam.tla) });
+    for (const team of [m.homeTeam, m.awayTeam]) {
+      const code = tlaToCode(team.tla);
+      if (code && team.name) teamIds.set(team.id, { name: team.name, code });
+    }
   }
   for (const [id, meta] of [...teamIds.entries()].slice(0, 4)) {
     if (signals.some((s) => s.id.startsWith(`squad_${meta.code}_`))) continue;

@@ -4,10 +4,11 @@
 
 import { parseIcsEvents } from "./calendar-ics";
 import { nationName } from "./teams-list";
+import { VENUES } from "./worldcup";
 
 const BASE = "https://api.football-data.org/v4";
 
-export type FdTeam = { id: number; name: string; tla: string };
+export type FdTeam = { id: number; name: string | null; tla: string | null };
 export type FdPlayer = { id: number; name: string; position: string };
 export type FdMatch = {
   id: number;
@@ -16,6 +17,8 @@ export type FdMatch = {
   stage: string;
   group: string | null;
   matchday: number | null;
+  venue?: string | null;
+  venueId?: string;
   homeTeam: FdTeam;
   awayTeam: FdTeam;
 };
@@ -72,6 +75,45 @@ function icsGroup(description: string): string | null {
   return hit ? `GROUP_${hit[1].toUpperCase()}` : null;
 }
 
+function normVenue(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/new york\/new jersey/g, "new york/nj")
+    .replace(/bay area/g, "bay")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function venueIdFromLocation(location: string): string | undefined {
+  const n = normVenue(location);
+  return VENUES.find((v) => {
+    const stadium = normVenue(v.stadium);
+    const city = normVenue(v.city);
+    return n.includes(stadium) || n.includes(city) || stadium.includes(n) || city.includes(n);
+  })?.id;
+}
+
+function fixtureKey(dateIso: string, codes: string[]): string {
+  return `${dateIso.slice(0, 10)}:${codes.filter(Boolean).sort().join("-")}`;
+}
+
+function icsVenueLookup(): {
+  byMatchNum: Map<number, { venue: string; venueId?: string }>;
+  byFixture: Map<string, { venue: string; venueId?: string }>;
+} {
+  const byMatchNum = new Map<number, { venue: string; venueId?: string }>();
+  const byFixture = new Map<string, { venue: string; venueId?: string }>();
+  for (const e of parseIcsEvents()) {
+    if (!e.location) continue;
+    const venue = { venue: e.location, venueId: venueIdFromLocation(e.location) };
+    byMatchNum.set(e.matchNum, venue);
+
+    const dt = parseIcsDt(e.block.match(/^DTSTART:(.+)$/m)?.[1]?.trim() ?? "");
+    if (e.teamCodes.length === 2) byFixture.set(fixtureKey(dt, e.teamCodes), venue);
+  }
+  return { byMatchNum, byFixture };
+}
+
 /** Static schedule fallback from bundled ICS (group-stage + knockout). */
 export function fixturesFromIcs(days = 45): FdMatch[] {
   const from = Date.now();
@@ -92,6 +134,8 @@ export function fixturesFromIcs(days = 45): FdMatch[] {
       stage: "GROUP_STAGE",
       group: icsGroup(e.description),
       matchday: null,
+      venue: e.location,
+      venueId: venueIdFromLocation(e.location),
       homeTeam: { id: e.matchNum * 10 + 1, name: nationName(homeCode), tla: homeCode },
       awayTeam: { id: e.matchNum * 10 + 2, name: nationName(awayCode), tla: awayCode },
     });
@@ -109,7 +153,14 @@ export async function fetchWcFixtures(days = 14): Promise<FdMatch[]> {
     3600,
   );
   const api = (data?.matches ?? []).filter((m) => m.status === "TIMED" || m.status === "SCHEDULED");
-  if (api.length > 0) return api;
+  if (api.length > 0) {
+    const venues = icsVenueLookup();
+    return api.map((m) => {
+      const codes = [tlaToCode(m.homeTeam.tla), tlaToCode(m.awayTeam.tla)];
+      const byFixture = venues.byFixture.get(fixtureKey(m.utcDate, codes));
+      return { ...m, ...(venues.byMatchNum.get(m.id) ?? byFixture) };
+    });
+  }
   return fixturesFromIcs(days);
 }
 
@@ -125,9 +176,11 @@ export async function fetchTeamSquad(teamId: number): Promise<FdPlayer[]> {
   return (data?.squad ?? []).slice(0, 26);
 }
 
-/** Map football-data TLA (3-letter) to our internal team code. */
-export function tlaToCode(tla: string): string {
-  return tla.toUpperCase();
+/** Map football-data TLA (3-letter) to our internal team code. "" when unknown (TBD teams). */
+export function tlaToCode(tla: string | null | undefined): string {
+  const code = tla ? tla.toUpperCase() : "";
+  if (code === "URY") return "URU";
+  return code;
 }
 
 /** GROUP_A → world-cup-group-a-winner */

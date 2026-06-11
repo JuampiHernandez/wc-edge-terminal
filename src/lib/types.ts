@@ -35,6 +35,8 @@ export type Signal = {
   /** 0–1 — official source > beat reporter > rumor. */
   confidence: number;
   headline: string;
+  /** LLM-written market context, when cached from cron enrichment. */
+  context?: string;
   detail?: string;
   source: string;
   url?: string;
@@ -47,6 +49,19 @@ export type Signal = {
   /** Polymarket market/event slugs this signal is linked to. */
   marketSlugs: string[];
   priceImpact?: PriceImpact;
+};
+
+export type TeamValuation = {
+  totalEur?: number;
+  source?: string;
+  updatedAt?: number;
+};
+
+export type TeamContext = {
+  code: string;
+  players: string[];
+  generatedAt?: number;
+  valuation?: TeamValuation;
 };
 
 /** A single tradable Polymarket outcome (binary Yes/No). */
@@ -107,7 +122,9 @@ export type LineMove = {
 /** Edge score: our synthesized fair price vs the market price. */
 export type EdgeScore = {
   marketSlug: string;
+  eventSlug: string;
   label: string;
+  teamCode?: string;
   eventTitle: string;
   marketPrice: number; // 0–1
   fairPrice: number; // 0–1, market + signal adjustments

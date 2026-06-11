@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { MarketEvent, Signal } from "@/lib/types";
 import { useLocale } from "@/components/LocaleProvider";
 import { MarketList } from "./MarketList";
+import { TeamMarketList } from "./TeamMarketList";
 import { TeamFollow } from "./TeamFollow";
 
 export function LeftPanel({
@@ -17,13 +18,13 @@ export function LeftPanel({
   selectedSlug: string | null;
   onSelect: (slug: string) => void;
 }) {
-  const [tab, setTab] = useState<"markets" | "follow">("markets");
+  const [tab, setTab] = useState<"markets" | "teams" | "follow">("markets");
   const { t } = useLocale();
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="shrink-0 flex border-b border-border">
-        {(["markets", "follow"] as const).map((tabKey) => (
+        {(["markets", "teams", "follow"] as const).map((tabKey) => (
           <button
             key={tabKey}
             type="button"
@@ -34,7 +35,11 @@ export function LeftPanel({
                 : "border-transparent text-subtle hover:text-muted"
             }`}
           >
-            {tabKey === "markets" ? t.leftPanel.markets : t.leftPanel.follow}
+            {tabKey === "markets"
+              ? t.leftPanel.markets
+              : tabKey === "teams"
+                ? t.leftPanel.teams
+                : t.leftPanel.follow}
           </button>
         ))}
       </div>
@@ -46,6 +51,8 @@ export function LeftPanel({
             selectedSlug={selectedSlug}
             onSelect={onSelect}
           />
+        ) : tab === "teams" ? (
+          <TeamMarketList events={events} selectedSlug={selectedSlug} onSelect={onSelect} />
         ) : (
           <TeamFollow />
         )}

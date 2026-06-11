@@ -8,6 +8,7 @@ import { fetchNationalSquad, resolveNationalTeamId } from "./api-football";
 import { fetchTeamSquad, fetchWcTeams, tlaToCode } from "./football-data";
 import { nationName, WC_NATIONS } from "./teams-list";
 import { TEAMS } from "./worldcup";
+import type { TeamContext, TeamValuation } from "./types";
 
 const FILE = path.join(process.cwd(), ".data", "rosters.json");
 const ROSTER_TTL_MS = 7 * 86_400_000;
@@ -17,6 +18,8 @@ export type StoredRoster = {
   generatedAt: number;
   /** team code → player display names */
   teams: Record<string, string[]>;
+  /** Optional valuation data populated by a future cached provider/import. */
+  valuations?: Record<string, TeamValuation>;
   /** Per-team last refresh (for incremental cron on Vercel free tier). */
   teamUpdatedAt?: Record<string, number>;
 };
@@ -375,6 +378,28 @@ export async function getCachedSquads(): Promise<Record<string, string[]>> {
     console.warn("[roster] squad cache read failed:", e);
     return {};
   }
+}
+
+/** Team context for market pages. Valuation is optional until a provider is added. */
+export async function getCachedTeamContexts(): Promise<Record<string, TeamContext>> {
+  const squads = await getCachedSquads();
+  let stored: StoredRoster | null = null;
+  try {
+    stored = await readStored();
+  } catch {
+    stored = null;
+  }
+
+  const out: Record<string, TeamContext> = {};
+  for (const [code, players] of Object.entries(squads)) {
+    out[code] = {
+      code,
+      players,
+      generatedAt: stored?.generatedAt,
+      valuation: stored?.valuations?.[code],
+    };
+  }
+  return out;
 }
 
 /** Full squad refresh — cron only (can take minutes). */

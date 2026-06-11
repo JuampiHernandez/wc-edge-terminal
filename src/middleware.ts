@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { LOCALE_COOKIE, resolveLocale, LOCALE_HEADER } from "@/lib/i18n";
+import { updateSession } from "@/lib/supabase/middleware";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const cookieLocale = request.cookies.get(LOCALE_COOKIE)?.value;
   const country = request.headers.get("x-vercel-ip-country");
   const acceptLanguage = request.headers.get("accept-language");
@@ -11,7 +12,7 @@ export function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(LOCALE_HEADER, locale);
 
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
   if (cookieLocale !== locale) {
     response.cookies.set(LOCALE_COOKIE, locale, {
       path: "/",
@@ -20,6 +21,11 @@ export function middleware(request: NextRequest) {
     });
   }
 
+  if (request.nextUrl.pathname === "/api/terminal" || request.nextUrl.pathname === "/api/cron/digest") {
+    return response;
+  }
+
+  response = await updateSession(request, response);
   return response;
 }
 

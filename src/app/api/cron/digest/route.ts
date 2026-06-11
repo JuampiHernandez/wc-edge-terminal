@@ -7,6 +7,7 @@ import { listSubscribers } from "@/lib/subscribers";
 import { nationName } from "@/lib/teams-list";
 import { fetchNewsSignals } from "@/lib/news";
 import { getCachedSquads, refreshRostersBatch, buildIndex, warmSquadCache } from "@/lib/roster";
+import { enrichNewsContexts, hasNewsEnrichmentConfig } from "@/lib/news-enrichment";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -39,7 +40,21 @@ export async function GET(req: Request) {
     }
   }
 
-  // 2. Email digest (optional — needs subscribers + Resend).
+  // 2. LLM news context (optional). Cron-only and cached, so page loads never spend tokens.
+  let newsSignals: Awaited<ReturnType<typeof fetchNewsSignals>>["signals"] | null = null;
+  let enrichment = { attempted: 0, enriched: 0, skipped: !hasNewsEnrichmentConfig() };
+  if (hasNewsEnrichmentConfig()) {
+    try {
+      const news = await fetchNewsSignals();
+      newsSignals = news.signals;
+      const enrichLimit = Math.min(200, Math.max(1, Number(url.searchParams.get("enrich")) || Number(process.env.AI_NEWS_ENRICH_LIMIT) || 120));
+      enrichment = await enrichNewsContexts(news.signals, enrichLimit);
+    } catch (e) {
+      console.warn("[cron/digest] news enrichment failed:", e);
+    }
+  }
+
+  // 3. Email digest (optional — needs subscribers + Resend).
   const resendKey = process.env.RESEND_API_KEY;
   const from = process.env.DIGEST_FROM_EMAIL ?? "digest@wc-edge.local";
   const subs = await listSubscribers();
@@ -50,10 +65,11 @@ export async function GET(req: Request) {
       sent: 0,
       note: "no subscribers",
       roster,
+      enrichment,
     });
   }
 
-  const { signals } = await fetchNewsSignals();
+  const signals = newsSignals ?? (await fetchNewsSignals()).signals;
   let sent = 0;
   const errors: string[] = [];
 
@@ -105,6 +121,7 @@ export async function GET(req: Request) {
     subscribers: subs.length,
     resend: !!resendKey,
     roster,
+    enrichment,
     errors,
   });
 }

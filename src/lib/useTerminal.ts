@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { MarketEvent, Signal } from "./types";
+import type { MarketEvent, Signal, TeamContext } from "./types";
 
 export type TerminalData = {
   events: MarketEvent[];
   signals: Signal[];
+  teams: Record<string, TeamContext>;
   sources: { id: string; ok: boolean; note?: string }[];
   generatedAt: number;
 };
 
-const EMPTY: TerminalData = { events: [], signals: [], sources: [], generatedAt: 0 };
+const EMPTY: TerminalData = { events: [], signals: [], teams: {}, sources: [], generatedAt: 0 };
 
 /** Polls /api/terminal on an interval and exposes the latest payload. */
 export function useTerminal(intervalMs = 30_000) {
