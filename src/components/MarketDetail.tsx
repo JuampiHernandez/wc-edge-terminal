@@ -9,9 +9,8 @@ import { flagFor, flagForLabel } from "@/lib/worldcup";
 import { fmtUsd, fmtPp, timeAgo } from "@/lib/format";
 import { localizedSignalContext } from "@/lib/signal-context";
 
-const GROUP_DEFS: { key: "availability" | "schedule" | "conditions" | "news"; kinds: SignalKind[] }[] = [
-  { key: "availability", kinds: ["injury", "suspension", "lineup", "card_watch"] },
-  { key: "schedule", kinds: ["fatigue"] },
+const GROUP_DEFS: { key: "availability" | "conditions" | "news"; kinds: SignalKind[] }[] = [
+  { key: "availability", kinds: ["injury", "suspension", "card_watch"] },
   { key: "conditions", kinds: ["weather", "referee"] },
   { key: "news", kinds: ["news"] },
 ];

@@ -44,8 +44,6 @@ export function classify(headline: string): { kind: SignalKind; severity: 1 | 2 
     return { kind: "suspension", severity: 3, impact: -1 };
   if (/(red card|sent off|sending[- ]off|yellow card)/.test(h))
     return { kind: "card_watch", severity: 2 };
-  if (/(lineup|line-up|starting xi|squad named|called up|convocator|alineaci)/.test(h))
-    return { kind: "lineup", severity: 2 };
   return { kind: "news", severity: 1 };
 }
 

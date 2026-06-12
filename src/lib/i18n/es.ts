@@ -76,7 +76,6 @@ export const es: Messages = {
     bet: "Apostar en Polymarket ↗",
     groups: {
       availability: "Disponibilidad",
-      schedule: "Calendario",
       conditions: "Condiciones",
       news: "Noticias",
       global: "Torneo",
@@ -141,12 +140,10 @@ export const es: Messages = {
   },
   signalKinds: {
     injury: "LESIÓN",
-    lineup: "ALINEACIÓN",
     suspension: "SUSPENSIÓN",
     card_watch: "TARJETAS",
     weather: "CLIMA",
     referee: "ÁRBITRO",
-    fatigue: "CALENDARIO",
     news: "NOTICIAS",
     social_velocity: "SOCIAL",
     whale_flow: "BALLENA",

@@ -1,7 +1,7 @@
 // Signal aggregation. Turns the raw real-data sources into a single, deduped,
 // market-linked Signal[]:
 //   · line_move   — 24h price moves derived from the markets we already fetch
-//   · news        — RSS injuries / lineups / returns / general
+//   · news        — RSS injuries / returns / general
 //   · weather     — extreme venue conditions (Open-Meteo)
 
 import type { Market, MarketEvent, MatchFixture, Signal, SignalKind } from "./types";
@@ -10,12 +10,10 @@ import type { Market, MarketEvent, MatchFixture, Signal, SignalKind } from "./ty
 export const INFO_SIGNAL_KINDS: SignalKind[] = [
   "injury",
   "suspension",
-  "lineup",
   "card_watch",
   "news",
   "weather",
   "referee",
-  "fatigue", // fixtures & schedule from football-data.org
 ];
 
 /** Derive line-movement signals from 24h price change on each market. */
@@ -48,7 +46,6 @@ export function lineMoveSignals(events: MarketEvent[]): Signal[] {
 export function signalsForMatch(match: MatchFixture, signals: Signal[]): Signal[] {
   const codes = new Set([match.homeCode, match.awayCode]);
   return signals
-    .filter((s) => s.id !== `fd_fixture_${match.id}`) // the fixture itself isn't news
     .filter((s) => INFO_SIGNAL_KINDS.includes(s.kind) || s.kind === "line_move")
     .filter((s) => s.entities.teams?.some((code) => codes.has(code)))
     .sort((a, b) => b.t - a.t || b.severity - a.severity);
@@ -80,7 +77,7 @@ export function linksToMarket(sig: Signal, market: Market): boolean {
 
 const FEED_KIND_CAP = 30;
 
-/** Balance the live feed so fixture fatigue timestamps don't bury news entirely. */
+/** Balance the live feed so one busy kind doesn't bury the rest entirely. */
 export function rankFeedSignals(signals: Signal[], limit = 120): Signal[] {
   const sorted = [...signals].sort((a, b) => b.t - a.t || b.severity - a.severity);
   const picked: Signal[] = [];

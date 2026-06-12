@@ -18,7 +18,6 @@ import { timeAgo } from "@/lib/format";
 const RADAR_KINDS = new Set([
   "injury",
   "suspension",
-  "lineup",
   "card_watch",
   "news",
   "weather",
@@ -40,7 +39,6 @@ function sameLocalDay(a: number, b: number): boolean {
 function topSignals(match: MatchFixture, signals: Signal[], limit: number): Signal[] {
   return signalsForMatch(match, signals)
     .filter((s) => RADAR_KINDS.has(s.kind))
-    .filter((s) => !s.id.startsWith("squad_")) // static roster facts, not news
     .sort((a, b) => b.severity - a.severity || b.t - a.t)
     .slice(0, limit);
 }

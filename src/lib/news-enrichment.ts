@@ -106,6 +106,7 @@ async function interpret(signal: Signal): Promise<string | null> {
           content:
             "You write short news headline summaries for a sports terminal. " +
             "Given a headline, output ONE concise headline-style line (max 12 words) stating what happened. " +
+            "Always write the summary in English, even when the headline is in another language. " +
             "Name the players or team when relevant. " +
             "No market analysis, no betting odds, no speculation, no phrases like 'the headline suggests'. " +
             "Do not invent facts beyond the headline.",

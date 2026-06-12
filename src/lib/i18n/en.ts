@@ -44,7 +44,7 @@ export type Messages = {
     relatedSubtitle: (count: number) => string;
     noLinked: string;
     bet: string;
-    groups: { availability: string; schedule: string; conditions: string; news: string; global: string };
+    groups: { availability: string; conditions: string; news: string; global: string };
   };
   radar: {
     tab: string;
@@ -175,7 +175,6 @@ export const en: Messages = {
     bet: "Bet on Polymarket ↗",
     groups: {
       availability: "Availability",
-      schedule: "Schedule",
       conditions: "Conditions",
       news: "News",
       global: "Tournament",
@@ -240,12 +239,10 @@ export const en: Messages = {
   },
   signalKinds: {
     injury: "INJURY",
-    lineup: "LINEUP",
     suspension: "SUSPENSION",
     card_watch: "CARD WATCH",
     weather: "WEATHER",
     referee: "REFEREE",
-    fatigue: "SCHEDULE",
     news: "NEWS",
     social_velocity: "SOCIAL",
     whale_flow: "WHALE FLOW",

@@ -110,7 +110,7 @@ function parseDate(raw: string): number {
 // ("THREE red cards in the first game" / "2 goals, 3 red cards | Gazette").
 // For classified kinds we compare significant-token overlap instead.
 
-const NEAR_DUP_KINDS = new Set(["injury", "suspension", "card_watch", "lineup"]);
+const NEAR_DUP_KINDS = new Set(["injury", "suspension", "card_watch"]);
 
 const STORY_STOP_WORDS = new Set([
   "the", "a", "an", "and", "or", "of", "in", "on", "at", "to", "for", "with", "as",

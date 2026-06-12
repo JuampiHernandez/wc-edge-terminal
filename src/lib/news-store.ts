@@ -28,6 +28,9 @@ type SignalRow = {
   research_run_id: string | null;
 };
 
+/** Kinds dropped from the product — old rows may linger until the cleanup migration runs. */
+const REMOVED_KINDS = new Set(["lineup", "fatigue"]);
+
 type ResearchRunRow = {
   id: string;
   started_at: string;
@@ -211,7 +214,7 @@ export async function loadStoredNewsSignals(maxAgeMs = NEWS_DISPLAY_MAX_AGE_MS):
     return [];
   }
 
-  return (data as SignalRow[]).map(rowToSignal);
+  return (data as SignalRow[]).filter((r) => !REMOVED_KINDS.has(r.kind)).map(rowToSignal);
 }
 
 export async function pruneOldSignals(keepDays = 14): Promise<void> {

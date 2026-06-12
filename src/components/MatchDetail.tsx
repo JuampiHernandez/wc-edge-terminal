@@ -11,7 +11,7 @@ import { flagFor } from "@/lib/worldcup";
 import { fmtUsd, fmtPp } from "@/lib/format";
 import { PolymarketCta, SignalRow } from "./MarketDetail";
 
-const TEAM_KINDS = new Set(["injury", "suspension", "lineup", "card_watch", "news", "line_move"]);
+const TEAM_KINDS = new Set(["injury", "suspension", "card_watch", "news", "line_move"]);
 const MAX_PER_GROUP = 12;
 
 function OddsBox({

@@ -6,12 +6,10 @@
 
 export type SignalKind =
   | "injury"
-  | "lineup"
   | "suspension"
   | "card_watch"
   | "weather"
   | "referee"
-  | "fatigue"
   | "news"
   | "social_velocity"
   | "whale_flow"
