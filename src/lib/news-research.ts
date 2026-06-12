@@ -206,8 +206,12 @@ async function fetchNewsApiNation(
 async function fetchGNewsNation(nation: WcNation, keywords: string[], windowMs: number): Promise<RawNewsItem[]> {
   const key = process.env.GNEWS_API_KEY;
   if (!key) return [];
-  const top = keywords.slice(0, 8).join(" OR ");
-  const q = encodeURIComponent(`${top} world cup OR FIFA OR injury`);
+  const top = keywords
+    .slice(0, 8)
+    .map((k) => `"${k}"`)
+    .join(" OR ");
+  // Parenthesized — an unscoped trailing OR would match any "FIFA"/"injury" article.
+  const q = encodeURIComponent(`(${top}) AND ("world cup" OR FIFA OR injury)`);
   const url = `https://gnews.io/api/v4/search?q=${q}&lang=en&max=50&sortby=publishedAt&apikey=${key}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`gnews/${nation.code}: HTTP ${res.status}`);

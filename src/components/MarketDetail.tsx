@@ -16,6 +16,21 @@ const GROUP_DEFS: { key: "availability" | "schedule" | "conditions" | "news"; ki
   { key: "news", kinds: ["news"] },
 ];
 
+const MAX_GLOBAL_ITEMS = 8;
+
+export function PolymarketCta({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center justify-center gap-1.5 w-full rounded-sm border border-accent/60 bg-accent/10 hover:bg-accent/20 transition-colors px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-accent"
+    >
+      {label}
+    </a>
+  );
+}
+
 export function SignalRow({ s }: { s: Signal }) {
   const { locale, t } = useLocale();
   const meta = localizedKindMeta(locale, s.kind);
@@ -115,9 +130,14 @@ export function MarketDetail({
   }
 
   const score = scoreMarket(market, signals);
-  const linked = signalsForMarket(market, signals).filter((s) =>
+  const allLinked = signalsForMarket(market, signals).filter((s) =>
     INFO_SIGNAL_KINDS.includes(s.kind),
   );
+  const linked = allLinked.filter((s) => !s.global);
+  const globalItems = allLinked
+    .filter((s) => s.global)
+    .sort((a, b) => b.t - a.t)
+    .slice(0, MAX_GLOBAL_ITEMS);
   const mktPct = market.yesPrice * 100;
   const fairPct = score.fairPrice * 100;
   const edgePp = score.edge * 100;
@@ -168,6 +188,12 @@ export function MarketDetail({
             </span>
           )}
         </div>
+        <div className="mt-3">
+          <PolymarketCta
+            href={`https://polymarket.com/event/${market.eventSlug}/${market.slug}`}
+            label={t.marketDetail.bet}
+          />
+        </div>
       </div>
 
       {market.teamCode && <SquadPanel teamContext={teamContext} />}
@@ -177,7 +203,7 @@ export function MarketDetail({
           {t.marketDetail.relatedInfo}
         </div>
         <div className="text-[9px] text-subtle mb-2">{t.marketDetail.relatedSubtitle(linked.length)}</div>
-        {linked.length === 0 && (
+        {linked.length === 0 && globalItems.length === 0 && (
           <div className="py-6 text-center text-[10px] text-subtle">{t.marketDetail.noLinked}</div>
         )}
         {GROUP_DEFS.map((g) => {
@@ -194,6 +220,16 @@ export function MarketDetail({
             </div>
           );
         })}
+        {globalItems.length > 0 && (
+          <div className="mb-3">
+            <div className="text-[9px] uppercase tracking-[0.2em] text-subtle mb-1">
+              {t.marketDetail.groups.global}
+            </div>
+            {globalItems.map((s) => (
+              <SignalRow key={s.id} s={s} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

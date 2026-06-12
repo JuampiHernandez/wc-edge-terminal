@@ -60,6 +60,8 @@ export function linksToMarket(sig: Signal, market: Market): boolean {
   if (sig.entities.teams && sig.entities.teams.length > 0) {
     return market.teamCode ? sig.entities.teams.includes(market.teamCode) : false;
   }
+  // Tournament-wide signals (FIFA rulings, format changes…) touch every market.
+  if (sig.global) return true;
   // Line moves only attach to the exact market that moved.
   if (sig.kind === "line_move") {
     return sig.marketSlugs.includes(market.slug);

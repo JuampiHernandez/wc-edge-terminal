@@ -247,6 +247,9 @@ async function fetchFeed(
           source: feed.source,
           scoped: feed.scoped,
           teamCode: feed.teamCode,
+          // Publisher-curated team pages (BBC/Guardian) — the tag is editorial,
+          // not a keyword match, so it's trustworthy even without a name hit.
+          teamCodeTrusted: Boolean(feed.teamCode),
         },
         index,
       ),

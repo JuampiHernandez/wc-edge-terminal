@@ -1,7 +1,7 @@
 // Shared helpers — turn a raw headline into a Signal with roster matching.
 
 import type { Signal, SignalKind } from "./types";
-import { matchHeadlineEntities, type RosterIndex } from "./roster";
+import { matchHeadlineEntities, WC_KEYWORDS, type RosterIndex } from "./roster";
 
 /** Short stable hash so IDs built from long URLs/guids never collide after truncation. */
 export function hashId(s: string): string {
@@ -19,11 +19,18 @@ export type RawNewsItem = {
   /** Skip relevance check (query was already WC-scoped). */
   scoped?: boolean;
   teamCode?: string;
+  /**
+   * The teamCode comes from a curated per-team source (e.g. BBC team page RSS),
+   * so it's kept even when the headline doesn't name the team. Keyword-search
+   * sources (GDELT/NewsAPI/GNews nation queries) leave this false: their tag
+   * only sticks when the headline itself corroborates the team.
+   */
+  teamCodeTrusted?: boolean;
   kind?: SignalKind;
   confidence?: number;
 };
 
-function classify(headline: string): { kind: SignalKind; severity: 1 | 2 | 3; impact?: -1 | 1 } {
+export function classify(headline: string): { kind: SignalKind; severity: 1 | 2 | 3; impact?: -1 | 1 } {
   const h = headline.toLowerCase();
   // Recovery news first — "returns from injury" must not hit the negative branch below.
   if (/(returns? from injury|injury return|back from injury|fit again|back in training|recovered from|cleared to play|shakes off)/.test(h))
@@ -56,26 +63,79 @@ function slugsForTeams(teams: string[]): string[] {
   return [...TEAM_EVENT_SLUGS];
 }
 
-export function rawToSignal(item: RawNewsItem, index: RosterIndex): Signal {
-  const classified = classify(item.title);
-  const kind = item.kind ?? classified.kind;
+export type DerivedNewsFields = {
+  kind: SignalKind;
+  severity: 1 | 2 | 3;
+  teams: string[];
+  players: string[];
+  marketSlugs: string[];
+  priceImpact?: Signal["priceImpact"];
+  global?: boolean;
+};
+
+/**
+ * Classification + team tagging for a headline. Shared by live ingestion and
+ * the stored-signal reclassification job so both always agree.
+ *
+ * Tagging rules:
+ *  · Teams confirmed by the headline (nation name / alias / roster player) always count.
+ *  · A forced source tag is kept only when trusted (curated team feed) or when
+ *    the headline corroborates it — nation keyword-search hits are routing noise.
+ *  · No team at all but clearly World Cup coverage → global (tournament-wide).
+ *  · priceImpact requires at least one confirmed/trusted team: a misrouted
+ *    headline must never move a market's fair price.
+ */
+export function deriveNewsFields(
+  title: string,
+  index: RosterIndex,
+  opts?: { teamCode?: string; teamCodeTrusted?: boolean; kind?: SignalKind },
+): DerivedNewsFields {
+  const classified = classify(title);
+  const kind = opts?.kind ?? classified.kind;
   const severity = kind === "social_velocity" ? 2 : classified.severity;
-  const impact = item.kind ? undefined : classified.impact;
-  const matched = matchHeadlineEntities(item.title, index);
+  const impact = opts?.kind ? undefined : classified.impact;
+
+  const matched = matchHeadlineEntities(title, index);
   const teams = new Set(matched.teams);
-  if (item.teamCode) teams.add(item.teamCode);
+  if (opts?.teamCode && (opts.teamCodeTrusted || teams.has(opts.teamCode))) {
+    teams.add(opts.teamCode);
+  }
+
+  const global = teams.size === 0 && WC_KEYWORDS.test(title);
+
+  return {
+    kind,
+    severity,
+    teams: [...teams],
+    players: matched.players.slice(0, 5),
+    marketSlugs: slugsForTeams([...teams]),
+    priceImpact:
+      impact && teams.size > 0
+        ? { direction: impact > 0 ? "up" : "down", estPct: severity * 1.5 }
+        : undefined,
+    global: global || undefined,
+  };
+}
+
+export function rawToSignal(item: RawNewsItem, index: RosterIndex): Signal {
+  const d = deriveNewsFields(item.title, index, {
+    teamCode: item.teamCode,
+    teamCodeTrusted: item.teamCodeTrusted,
+    kind: item.kind,
+  });
 
   return {
     id: item.id,
     t: item.t,
-    kind,
-    severity,
+    kind: d.kind,
+    severity: d.severity,
     confidence: item.confidence ?? (item.scoped ? 0.65 : 0.6),
     headline: item.title,
     source: item.source,
     url: item.url,
-    entities: { teams: [...teams], players: matched.players.slice(0, 5) },
-    marketSlugs: slugsForTeams([...teams]),
-    priceImpact: impact ? { direction: impact > 0 ? "up" : "down", estPct: severity * 1.5 } : undefined,
+    entities: { teams: d.teams, players: d.players },
+    marketSlugs: d.marketSlugs,
+    priceImpact: d.priceImpact,
+    global: d.global,
   };
 }

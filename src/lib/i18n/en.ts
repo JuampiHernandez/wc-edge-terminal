@@ -43,7 +43,8 @@ export type Messages = {
     relatedInfo: string;
     relatedSubtitle: (count: number) => string;
     noLinked: string;
-    groups: { availability: string; schedule: string; conditions: string; news: string };
+    bet: string;
+    groups: { availability: string; schedule: string; conditions: string; news: string; global: string };
   };
   radar: {
     tab: string;
@@ -150,7 +151,7 @@ export const en: Messages = {
       `news & factors for both teams · ${count} item${count === 1 ? "" : "s"}`,
     conditions: "Conditions & schedule",
     noNews: "no signals linked to this match yet",
-    trade: "Trade on Polymarket ↗",
+    trade: "Bet on Polymarket ↗",
   },
   marketList: {
     searchPlaceholder: "search markets…",
@@ -171,11 +172,13 @@ export const en: Messages = {
     relatedSubtitle: (count: number) =>
       `For this market only · news & factors · ${count} item${count === 1 ? "" : "s"}`,
     noLinked: "no news or factors linked to this market yet",
+    bet: "Bet on Polymarket ↗",
     groups: {
       availability: "Availability",
       schedule: "Schedule",
       conditions: "Conditions",
       news: "News",
+      global: "Tournament",
     },
   },
   radar: {

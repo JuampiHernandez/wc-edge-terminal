@@ -199,7 +199,7 @@ async function fetchGNewsNations(): Promise<RawNewsItem[]> {
     const results = await Promise.allSettled(
       batch.map(async (n) => {
         const name = nationName(n.code);
-        const q = encodeURIComponent(`${name} world cup OR ${name} FIFA`);
+        const q = encodeURIComponent(`"${name}" AND ("world cup" OR FIFA)`);
         const url = `https://gnews.io/api/v4/search?q=${q}&lang=en&max=10&sortby=publishedAt&apikey=${key}`;
         const res = await fetch(url, { next: { revalidate: API_CACHE } });
         if (!res.ok) throw new Error(`gnews/${n.code}: HTTP ${res.status}`);

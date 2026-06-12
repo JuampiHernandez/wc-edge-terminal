@@ -51,6 +51,8 @@ export type Signal = {
   /** Polymarket market/event slugs this signal is linked to. */
   marketSlugs: string[];
   priceImpact?: PriceImpact;
+  /** Tournament-wide signal — links to every World Cup market, not one team. */
+  global?: boolean;
 };
 
 export type TeamValuation = {

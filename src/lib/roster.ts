@@ -134,7 +134,8 @@ function buildTeamTerms(): { phrase: string; teamCode: string }[] {
 
   for (const nation of WC_NATIONS) {
     add(nation.name, nation.code);
-    add(nation.code, nation.code);
+    // Bare codes are matched separately, case-sensitively — "por"/"usa" are
+    // ordinary Spanish words and must not tag POR/USA.
   }
   for (const [name, meta] of Object.entries(TEAMS)) {
     add(name, meta.code);
@@ -183,6 +184,14 @@ export function buildIndex(stored: StoredRoster): RosterIndex {
   };
 }
 
+/** Uppercase-only code match: "JPN beat ARG" tags, Spanish "por"/"usa" don't. */
+function matchNationCodes(headline: string, teams: Set<string>): void {
+  for (const nation of WC_NATIONS) {
+    const re = new RegExp(`(?:^|[^A-Za-z])${nation.code}(?:[^A-Za-z]|$)`);
+    if (re.test(headline)) teams.add(nation.code);
+  }
+}
+
 /** Match headline against rosters + team aliases. Returns team codes and player names. */
 export function matchHeadlineEntities(
   headline: string,
@@ -195,6 +204,7 @@ export function matchHeadlineEntities(
   for (const { phrase, teamCode } of index.teamTerms) {
     if (containsPhrase(h, phrase)) teams.add(teamCode);
   }
+  matchNationCodes(headline, teams);
 
   for (const { phrase, teamCode, name } of index.fullNameTerms) {
     if (containsPhrase(h, phrase)) {

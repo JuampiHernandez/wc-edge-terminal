@@ -15,6 +15,7 @@
     "research:enrich": "tsx --env-file=.env.local scripts/enrich-news.ts",
     "research:enrich:force": "FORCE=1 tsx --env-file=.env.local scripts/enrich-news.ts",
     "research:full": "tsx --env-file=.env.local scripts/research-full.ts",
+    "research:reclassify": "tsx --env-file=.env.local scripts/reclassify-news.ts",
     "research:esp": "NATIONS=ESP REFRESH=0 tsx --env-file=.env.local scripts/research-full.ts",
     "research:esp:refresh": "NATIONS=ESP tsx --env-file=.env.local scripts/research-full.ts"
   },

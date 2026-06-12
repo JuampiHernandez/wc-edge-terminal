@@ -9,7 +9,7 @@ import { useLocale } from "@/components/LocaleProvider";
 import { signalsForMatch } from "@/lib/signals";
 import { flagFor } from "@/lib/worldcup";
 import { fmtUsd, fmtPp } from "@/lib/format";
-import { SignalRow } from "./MarketDetail";
+import { PolymarketCta, SignalRow } from "./MarketDetail";
 
 const TEAM_KINDS = new Set(["injury", "suspension", "lineup", "card_watch", "news", "line_move"]);
 const MAX_PER_GROUP = 12;
@@ -99,16 +99,6 @@ export function MatchDetail({ match, signals }: { match: MatchFixture; signals: 
           <span className="text-[9px] uppercase tracking-[0.2em] text-accent">
             {t.matchDetail.moneyline}
           </span>
-          {o && (
-            <a
-              href={`https://polymarket.com/event/${o.eventSlug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[9px] text-subtle hover:text-accent transition-colors"
-            >
-              {t.matchDetail.trade}
-            </a>
-          )}
         </div>
         <div className="flex gap-2">
           <OddsBox
@@ -144,6 +134,12 @@ export function MatchDetail({ match, signals }: { match: MatchFixture; signals: 
               <span className="ml-auto">
                 {t.matchDetail.kickoff} {when}
               </span>
+            </div>
+            <div className="mt-3">
+              <PolymarketCta
+                href={`https://polymarket.com/event/${o.eventSlug}`}
+                label={t.matchDetail.trade}
+              />
             </div>
           </>
         ) : (

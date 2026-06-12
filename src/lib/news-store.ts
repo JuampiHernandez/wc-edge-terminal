@@ -24,6 +24,7 @@ type SignalRow = {
   players: string[];
   market_slugs: string[];
   price_impact: PriceImpact | null;
+  is_global: boolean | null;
   research_run_id: string | null;
 };
 
@@ -57,6 +58,7 @@ function rowToSignal(row: SignalRow): Signal {
     },
     marketSlugs: row.market_slugs,
     priceImpact: row.price_impact ?? undefined,
+    global: row.is_global ?? undefined,
   };
 }
 
@@ -78,6 +80,7 @@ function signalToRow(signal: Signal, runId?: string): Omit<SignalRow, "detected_
     players: signal.entities.players ?? [],
     market_slugs: signal.marketSlugs,
     price_impact: signal.priceImpact ?? null,
+    is_global: signal.global ?? false,
     research_run_id: runId ?? null,
   };
 }

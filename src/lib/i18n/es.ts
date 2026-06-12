@@ -52,7 +52,7 @@ export const es: Messages = {
       `noticias y factores de ambos equipos · ${count} ítem${count === 1 ? "" : "s"}`,
     conditions: "Condiciones y agenda",
     noNews: "todavía no hay señales vinculadas a este partido",
-    trade: "Operar en Polymarket ↗",
+    trade: "Apostar en Polymarket ↗",
   },
   marketList: {
     searchPlaceholder: "buscar mercados…",
@@ -73,11 +73,13 @@ export const es: Messages = {
     relatedSubtitle: (count: number) =>
       `Solo para este mercado · noticias y factores · ${count} elemento${count === 1 ? "" : "s"}`,
     noLinked: "aún no hay noticias ni factores vinculados a este mercado",
+    bet: "Apostar en Polymarket ↗",
     groups: {
       availability: "Disponibilidad",
       schedule: "Calendario",
       conditions: "Condiciones",
       news: "Noticias",
+      global: "Torneo",
     },
   },
   radar: {
