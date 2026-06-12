@@ -25,14 +25,20 @@ export type RawNewsItem = {
 
 function classify(headline: string): { kind: SignalKind; severity: 1 | 2 | 3; impact?: -1 | 1 } {
   const h = headline.toLowerCase();
-  if (/(ruled out|out for|sidelined|injur|will miss|baja|lesion|doubtful|muscle knock|picked up a knock|surgery)/.test(h))
+  // Recovery news first — "returns from injury" must not hit the negative branch below.
+  if (/(returns? from injury|injury return|back from injury|fit again|back in training|recovered from|cleared to play|shakes off)/.test(h))
+    return { kind: "injury", severity: 2, impact: 1 };
+  if (
+    /(ruled out|out for|sidelined|injur|will miss|\bbaja\b|lesi[oó]n|doubtful|injury doubt|fitness doubt|injury scare|muscle knock|picked up a knock|surgery|hamstring|se pierde)/.test(h)
+  )
     return { kind: "injury", severity: 3, impact: -1 };
-  if (/(suspend|banned|red card|sancionado)/.test(h))
+  // Confirmed bans only — a red card in a match report is card news, not a suspension.
+  if (/(suspend|banned|sancionado|match ban)/.test(h))
     return { kind: "suspension", severity: 3, impact: -1 };
+  if (/(red card|sent off|sending[- ]off|yellow card)/.test(h))
+    return { kind: "card_watch", severity: 2 };
   if (/(lineup|line-up|starting xi|squad named|called up|convocator|alineaci)/.test(h))
     return { kind: "lineup", severity: 2 };
-  if (/(returns|fit again|back in training|recovered|cleared to play)/.test(h))
-    return { kind: "injury", severity: 2, impact: 1 };
   return { kind: "news", severity: 1 };
 }
 

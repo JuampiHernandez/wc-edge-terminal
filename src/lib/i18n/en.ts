@@ -5,8 +5,31 @@ export type Messages = {
   header: { calendar: string; signUp: string; signOut: string; live: string; offline: string };
   theme: { dark: string; light: string; switchToDark: string; switchToLight: string };
   locale: { en: string; es: string; switchToEn: string; switchToEs: string };
-  leftPanel: { markets: string; teams: string };
+  leftPanel: { matchday: string; markets: string; teams: string };
   marketList: { searchPlaceholder: string; allEvents: (n: number) => string; noMarkets: string };
+  matchday: {
+    today: string;
+    upcoming: string;
+    yourTeams: string;
+    allTeams: string;
+    noGamesToday: string;
+    noUpcoming: string;
+    draw: string;
+    oddsPending: string;
+    followHint: string;
+  };
+  matchDetail: {
+    kickoff: string;
+    draw: string;
+    vol24h: string;
+    liq: string;
+    moneyline: string;
+    whatMoves: string;
+    whatMovesSubtitle: (count: number) => string;
+    conditions: string;
+    noNews: string;
+    trade: string;
+  };
   marketDetail: {
     selectMarket: string;
     market: string;
@@ -21,6 +44,13 @@ export type Messages = {
     relatedSubtitle: (count: number) => string;
     noLinked: string;
     groups: { availability: string; schedule: string; conditions: string; news: string };
+  };
+  radar: {
+    tab: string;
+    feedTab: string;
+    subtitle: string;
+    noNews: string;
+    more: (n: number) => string;
   };
   signalFeed: {
     title: string;
@@ -72,7 +102,7 @@ export const en: Messages = {
   meta: {
     title: "World Cup Terminal",
     description:
-      "Live markets. Smart signals. Every match. One place. — injuries, lineups, weather, whale flow and line moves, linked to every Polymarket market.",
+      "Live markets. Smart signals. Every match. One place. — injuries, lineups, weather, whale flow and price moves, linked to every Polymarket market.",
   },
   header: {
     calendar: "Calendar",
@@ -94,8 +124,33 @@ export const en: Messages = {
     switchToEs: "Switch to Spanish",
   },
   leftPanel: {
+    matchday: "Matchday",
     markets: "Markets",
     teams: "Teams",
+  },
+  matchday: {
+    today: "Today",
+    upcoming: "Upcoming",
+    yourTeams: "your teams",
+    allTeams: "all teams",
+    noGamesToday: "no games today",
+    noUpcoming: "no upcoming games in this window",
+    draw: "draw",
+    oddsPending: "odds pending",
+    followHint: "follow teams in the Teams tab to filter this list",
+  },
+  matchDetail: {
+    kickoff: "Kickoff",
+    draw: "Draw",
+    vol24h: "24h vol",
+    liq: "liq",
+    moneyline: "Moneyline · Polymarket",
+    whatMoves: "What can move this market",
+    whatMovesSubtitle: (count: number) =>
+      `news & factors for both teams · ${count} item${count === 1 ? "" : "s"}`,
+    conditions: "Conditions & schedule",
+    noNews: "no signals linked to this match yet",
+    trade: "Trade on Polymarket ↗",
   },
   marketList: {
     searchPlaceholder: "search markets…",
@@ -122,6 +177,13 @@ export const en: Messages = {
       conditions: "Conditions",
       news: "News",
     },
+  },
+  radar: {
+    tab: "Radar",
+    feedTab: "Feed",
+    subtitle: "odds + news that can move them",
+    noNews: "no market-moving news yet",
+    more: (n: number) => `+${n} more — open the match for everything`,
   },
   signalFeed: {
     title: "Signal Feed",
@@ -180,11 +242,11 @@ export const en: Messages = {
     card_watch: "CARD WATCH",
     weather: "WEATHER",
     referee: "REFEREE",
-    fatigue: "FATIGUE",
+    fatigue: "SCHEDULE",
     news: "NEWS",
     social_velocity: "SOCIAL",
     whale_flow: "WHALE FLOW",
-    line_move: "LINE MOVE",
+    line_move: "PRICE MOVE",
     cross_book: "CROSS-BOOK",
   },
 };

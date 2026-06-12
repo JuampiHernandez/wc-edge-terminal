@@ -4,7 +4,7 @@
 //   · news        — RSS injuries / lineups / returns / general
 //   · weather     — extreme venue conditions (Open-Meteo)
 
-import type { Market, MarketEvent, Signal, SignalKind } from "./types";
+import type { Market, MarketEvent, MatchFixture, Signal, SignalKind } from "./types";
 
 /** Kinds shown in the market "Related information" drawer (causes, not price reactions). */
 export const INFO_SIGNAL_KINDS: SignalKind[] = [
@@ -32,7 +32,7 @@ export function lineMoveSignals(events: MarketEvent[]): Signal[] {
         kind: "line_move",
         severity,
         confidence: 1,
-        headline: `${m.label} ${d >= 0 ? "▲" : "▼"} ${Math.abs(d).toFixed(1)}pp (24h)`,
+        headline: `${m.label} ${d >= 0 ? "▲" : "▼"} ${Math.abs(d).toFixed(1)}pp (24h) · ${ev.title}`,
         detail: `${ev.title} · now ${Math.round(m.yesPrice * 100)}%.`,
         source: "Polymarket",
         entities: m.teamCode ? { teams: [m.teamCode] } : {},
@@ -42,6 +42,16 @@ export function lineMoveSignals(events: MarketEvent[]): Signal[] {
     }
   }
   return out.sort((a, b) => b.severity - a.severity).slice(0, 25);
+}
+
+/** Signals relevant to a match: anything tagged to either nation. */
+export function signalsForMatch(match: MatchFixture, signals: Signal[]): Signal[] {
+  const codes = new Set([match.homeCode, match.awayCode]);
+  return signals
+    .filter((s) => s.id !== `fd_fixture_${match.id}`) // the fixture itself isn't news
+    .filter((s) => INFO_SIGNAL_KINDS.includes(s.kind) || s.kind === "line_move")
+    .filter((s) => s.entities.teams?.some((code) => codes.has(code)))
+    .sort((a, b) => b.t - a.t || b.severity - a.severity);
 }
 
 /** Decide whether a signal is relevant to a specific market. */

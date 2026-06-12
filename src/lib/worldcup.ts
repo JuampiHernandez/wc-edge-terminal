@@ -119,6 +119,13 @@ export const TEAMS: Record<string, { code: string; flag: string }> = {
   "bosnia-herzegovina": { code: "BIH", flag: "🇧🇦" },
   "congo dr": { code: "COD", flag: "🇨🇩" },
   curaçao: { code: "CUW", flag: "🇨🇼" },
+  // Aliases used by Polymarket match-event titles.
+  "united states": { code: "USA", flag: "🇺🇸" },
+  "bosnia and herzegovina": { code: "BIH", flag: "🇧🇦" },
+  "cote d'ivoire": { code: "CIV", flag: "🇨🇮" },
+  "cabo verde": { code: "CPV", flag: "🇨🇻" },
+  "dr congo": { code: "COD", flag: "🇨🇩" },
+  "korea republic": { code: "KOR", flag: "🇰🇷" },
 };
 
 /** Continent / region outcomes (not nations). */

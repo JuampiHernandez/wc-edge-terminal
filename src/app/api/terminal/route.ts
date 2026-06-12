@@ -9,9 +9,10 @@ import { loadStoredNewsSignals } from "@/lib/news-store";
 import { fetchVenueWeather, weatherSignals } from "@/lib/weather";
 import { lineMoveSignals } from "@/lib/signals";
 import { fetchFootballSignals, teamsByVenueFromFixtures } from "@/lib/football-signals";
+import { buildMatchday, mergeMatchdayOdds } from "@/lib/match-markets";
 import { ALL_WC_EVENT_SLUGS } from "@/lib/worldcup";
 import { getCachedTeamContexts } from "@/lib/roster";
-import type { MarketEvent, Signal, TeamContext } from "@/lib/types";
+import type { MarketEvent, MatchFixture, Signal, TeamContext } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ export const maxDuration = 60;
 type Source = { id: string; ok: boolean; note?: string };
 type TerminalPayload = {
   events: MarketEvent[];
+  matchday: MatchFixture[];
   signals: Signal[];
   sources: Source[];
   teams: Record<string, TeamContext>;
@@ -31,7 +33,12 @@ let terminalCache: { at: number; payload: TerminalPayload } | null = null;
 let terminalInFlight: Promise<TerminalPayload> | null = null;
 
 /** When Polymarket Gamma is unreachable locally, borrow events from prod (dev only). */
-async function loadEvents(slugs: string[]): Promise<{ events: MarketEvent[]; note: string; ok: boolean }> {
+async function loadEvents(slugs: string[]): Promise<{
+  events: MarketEvent[];
+  fallbackMatchday?: MatchFixture[];
+  note: string;
+  ok: boolean;
+}> {
   const direct = await fetchEvents(slugs);
   if (direct.length > 0) {
     return { events: direct, note: `${direct.length} events`, ok: true };
@@ -49,6 +56,7 @@ async function loadEvents(slugs: string[]): Promise<{ events: MarketEvent[]; not
     if (data.events?.length) {
       return {
         events: data.events,
+        fallbackMatchday: data.matchday,
         note: `${data.events.length} events · dev fallback`,
         ok: true,
       };
@@ -113,6 +121,30 @@ async function buildTerminalPayload(): Promise<TerminalPayload> {
     }
   }
 
+  // Today's + upcoming match markets (moneyline odds per fixture).
+  const footballMatches = footballR.status === "fulfilled" ? footballR.value.matches : [];
+  let matchday: MatchFixture[] = [];
+  try {
+    const md = await buildMatchday(footballMatches);
+    matchday = md.matchday;
+    let note = md.note;
+    let ok = md.ok;
+    // Dev: gamma unreachable locally — borrow per-match odds from prod.
+    const fallbackMatchday =
+      eventsR.status === "fulfilled" ? eventsR.value.fallbackMatchday : undefined;
+    if (!ok && fallbackMatchday?.length) {
+      const merged = mergeMatchdayOdds(matchday, fallbackMatchday);
+      if (merged > 0) {
+        note = `${note} · ${merged} odds via dev fallback`;
+        ok = true;
+      }
+    }
+    sources.push({ id: "match-markets", ok, note });
+  } catch (e) {
+    console.warn("[terminal] matchday failed:", e);
+    sources.push({ id: "match-markets", ok: false, note: "fetch failed" });
+  }
+
   // Football-data.org + API-Football (before weather — fixtures tag teams to venues)
   let teamsByVenue: Record<string, string[]> = {};
   if (footballR.status === "fulfilled") {
@@ -140,7 +172,7 @@ async function buildTerminalPayload(): Promise<TerminalPayload> {
 
   const teams: Record<string, TeamContext> = teamsR.status === "fulfilled" ? teamsR.value : {};
 
-  return { events, signals, sources, teams, generatedAt: Date.now() };
+  return { events, matchday, signals, sources, teams, generatedAt: Date.now() };
 }
 
 async function getTerminalPayload(): Promise<TerminalPayload> {

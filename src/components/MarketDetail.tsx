@@ -16,7 +16,7 @@ const GROUP_DEFS: { key: "availability" | "schedule" | "conditions" | "news"; ki
   { key: "news", kinds: ["news"] },
 ];
 
-function SignalRow({ s }: { s: Signal }) {
+export function SignalRow({ s }: { s: Signal }) {
   const { locale, t } = useLocale();
   const meta = localizedKindMeta(locale, s.kind);
   const digest = localizedSignalContext(s, locale);

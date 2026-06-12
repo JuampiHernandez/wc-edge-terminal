@@ -1,36 +1,37 @@
 "use client";
 
+// Right column: "Radar" (curated — today's match markets with odds + the news
+// linked to each) is the default; the raw global signal feed lives behind the
+// "Feed" tab for power users.
+
 import { useState } from "react";
-import type { MarketEvent, MatchFixture } from "@/lib/types";
+import type { MatchFixture, Signal } from "@/lib/types";
 import { useLocale } from "@/components/LocaleProvider";
-import { MarketList } from "./MarketList";
-import { MatchdayList } from "./MatchdayList";
-import { TeamMarketList } from "./TeamMarketList";
+import { MatchRadar } from "./MatchRadar";
+import { SignalFeed } from "./SignalFeed";
 
-type Tab = "matchday" | "markets" | "teams";
+type Tab = "radar" | "feed";
 
-export function LeftPanel({
-  events,
+export function RightPanel({
   matchday,
-  selectedSlug,
+  signals,
   selectedMatchId,
-  onSelect,
   onSelectMatch,
+  onJump,
 }: {
-  events: MarketEvent[];
   matchday: MatchFixture[];
-  selectedSlug: string | null;
+  signals: Signal[];
   selectedMatchId: string | null;
-  onSelect: (slug: string) => void;
   onSelectMatch: (id: string) => void;
+  onJump: (s: Signal) => void;
 }) {
-  const [tab, setTab] = useState<Tab>("matchday");
+  const [tab, setTab] = useState<Tab>("radar");
   const { t } = useLocale();
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="shrink-0 flex border-b border-border">
-        {(["matchday", "markets", "teams"] as const).map((tabKey) => (
+        {(["radar", "feed"] as const).map((tabKey) => (
           <button
             key={tabKey}
             type="button"
@@ -41,21 +42,20 @@ export function LeftPanel({
                 : "border-transparent text-subtle hover:text-muted"
             }`}
           >
-            {t.leftPanel[tabKey]}
+            {tabKey === "radar" ? t.radar.tab : t.radar.feedTab}
           </button>
         ))}
       </div>
       <div className="flex-1 min-h-0 overflow-hidden">
-        {tab === "matchday" ? (
-          <MatchdayList
+        {tab === "radar" ? (
+          <MatchRadar
             matchday={matchday}
+            signals={signals}
             selectedMatchId={selectedMatchId}
             onSelectMatch={onSelectMatch}
           />
-        ) : tab === "markets" ? (
-          <MarketList events={events} selectedSlug={selectedSlug} onSelect={onSelect} />
         ) : (
-          <TeamMarketList events={events} selectedSlug={selectedSlug} onSelect={onSelect} />
+          <SignalFeed signals={signals} onJump={onJump} />
         )}
       </div>
     </div>

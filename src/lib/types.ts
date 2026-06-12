@@ -99,6 +99,34 @@ export type MarketEvent = {
   markets: Market[];
 };
 
+/** Moneyline (1X2) prices for a single match, from the Polymarket match event. */
+export type MatchOdds = {
+  /** Polymarket event slug, e.g. "fifwc-can-bih-2026-06-12". */
+  eventSlug: string;
+  home: number; // 0–1
+  draw: number;
+  away: number;
+  volume24hr: number;
+  liquidity: number;
+  /** 24h delta of the home-win price, in probability points. */
+  homeChange24h?: number;
+  awayChange24h?: number;
+};
+
+/** A scheduled World Cup match, optionally enriched with Polymarket odds. */
+export type MatchFixture = {
+  id: string;
+  kickoff: number; // ms epoch
+  homeCode: string;
+  awayCode: string;
+  homeName: string;
+  awayName: string;
+  /** e.g. "Group B" or "Round of 16". */
+  stageLabel?: string;
+  venue?: string;
+  odds?: MatchOdds;
+};
+
 /** A whale / large position from the Polymarket data API. */
 export type FlowEntry = {
   id: string;

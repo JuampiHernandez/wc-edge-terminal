@@ -4,7 +4,7 @@ export const es: Messages = {
   meta: {
     title: "World Cup Terminal",
     description:
-      "Mercados en vivo. Señales inteligentes. Todos los partidos. Un solo lugar. — lesiones, alineaciones, clima, flujo de ballenas y movimientos de línea, vinculados a cada mercado de Polymarket.",
+      "Mercados en vivo. Señales inteligentes. Todos los partidos. Un solo lugar. — lesiones, alineaciones, clima, flujo de ballenas y movimientos de precio, vinculados a cada mercado de Polymarket.",
   },
   header: {
     calendar: "Calendario",
@@ -26,8 +26,33 @@ export const es: Messages = {
     switchToEs: "Cambiar a español",
   },
   leftPanel: {
+    matchday: "Partidos",
     markets: "Mercados",
     teams: "Equipos",
+  },
+  matchday: {
+    today: "Hoy",
+    upcoming: "Próximos",
+    yourTeams: "tus equipos",
+    allTeams: "todos los equipos",
+    noGamesToday: "no hay partidos hoy",
+    noUpcoming: "sin próximos partidos en esta ventana",
+    draw: "empate",
+    oddsPending: "cuotas pendientes",
+    followHint: "seguí equipos en la pestaña Equipos para filtrar esta lista",
+  },
+  matchDetail: {
+    kickoff: "Inicio",
+    draw: "Empate",
+    vol24h: "vol 24h",
+    liq: "liq",
+    moneyline: "Moneyline · Polymarket",
+    whatMoves: "Qué puede mover este mercado",
+    whatMovesSubtitle: (count: number) =>
+      `noticias y factores de ambos equipos · ${count} ítem${count === 1 ? "" : "s"}`,
+    conditions: "Condiciones y agenda",
+    noNews: "todavía no hay señales vinculadas a este partido",
+    trade: "Operar en Polymarket ↗",
   },
   marketList: {
     searchPlaceholder: "buscar mercados…",
@@ -54,6 +79,13 @@ export const es: Messages = {
       conditions: "Condiciones",
       news: "Noticias",
     },
+  },
+  radar: {
+    tab: "Radar",
+    feedTab: "Feed",
+    subtitle: "cuotas + noticias que pueden moverlas",
+    noNews: "todavía sin noticias que muevan el mercado",
+    more: (n: number) => `+${n} más — abrí el partido para ver todo`,
   },
   signalFeed: {
     title: "Feed de señales",
@@ -112,11 +144,11 @@ export const es: Messages = {
     card_watch: "TARJETAS",
     weather: "CLIMA",
     referee: "ÁRBITRO",
-    fatigue: "FATIGA",
+    fatigue: "CALENDARIO",
     news: "NOTICIAS",
     social_velocity: "SOCIAL",
     whale_flow: "BALLENA",
-    line_move: "LÍNEA",
+    line_move: "MOVIMIENTO",
     cross_book: "CRUZADO",
   },
 };

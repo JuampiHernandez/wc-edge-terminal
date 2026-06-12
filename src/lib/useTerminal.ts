@@ -1,17 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { MarketEvent, Signal, TeamContext } from "./types";
+import type { MarketEvent, MatchFixture, Signal, TeamContext } from "./types";
 
 export type TerminalData = {
   events: MarketEvent[];
+  matchday: MatchFixture[];
   signals: Signal[];
   teams: Record<string, TeamContext>;
   sources: { id: string; ok: boolean; note?: string }[];
   generatedAt: number;
 };
 
-const EMPTY: TerminalData = { events: [], signals: [], teams: {}, sources: [], generatedAt: 0 };
+const EMPTY: TerminalData = {
+  events: [],
+  matchday: [],
+  signals: [],
+  teams: {},
+  sources: [],
+  generatedAt: 0,
+};
 
 /** Polls /api/terminal on an interval and exposes the latest payload. */
 export function useTerminal(intervalMs = 30_000) {
@@ -29,7 +37,7 @@ export function useTerminal(intervalMs = 30_000) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = (await res.json()) as TerminalData;
         if (!aliveRef.current) return;
-        setData(json);
+        setData({ ...json, matchday: json.matchday ?? [] });
         setError(null);
       } catch (e) {
         if (aliveRef.current) setError(String(e));
