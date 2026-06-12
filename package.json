@@ -3,12 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --hostname 127.0.0.1",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "cron:daily": "curl -sf -H \"Authorization: Bearer ${CRON_SECRET}\" \"${CRON_URL:-http://localhost:3000}/api/cron/digest\"",
-    "cron:rosters": "curl -sf -H \"Authorization: Bearer ${CRON_SECRET}\" \"${CRON_URL:-http://localhost:3000}/api/cron/digest?teams=48\""
+    "cron:rosters": "curl -sf -H \"Authorization: Bearer ${CRON_SECRET}\" \"${CRON_URL:-http://localhost:3000}/api/cron/digest?teams=48\"",
+    "cron:news-research": "curl -sf -H \"Authorization: Bearer ${CRON_SECRET}\" \"${CRON_URL:-http://localhost:3000}/api/cron/news-research\"",
+    "cron:news-enrich": "curl -sf -H \"Authorization: Bearer ${CRON_SECRET}\" \"${CRON_URL:-http://localhost:3000}/api/cron/news-enrich\"",
+    "research:news": "tsx --env-file=.env.local scripts/deep-news-research.ts",
+    "research:enrich": "tsx --env-file=.env.local scripts/enrich-news.ts",
+    "research:enrich:force": "FORCE=1 tsx --env-file=.env.local scripts/enrich-news.ts",
+    "research:full": "tsx --env-file=.env.local scripts/research-full.ts",
+    "research:esp": "NATIONS=ESP REFRESH=0 tsx --env-file=.env.local scripts/research-full.ts",
+    "research:esp:refresh": "NATIONS=ESP tsx --env-file=.env.local scripts/research-full.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
@@ -26,6 +34,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.7",
     "tailwindcss": "^4",
+    "tsx": "^4.19.4",
     "typescript": "^5"
   }
 }

@@ -1,24 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Market, MarketEvent, Signal } from "@/lib/types";
+import type { Market, MarketEvent } from "@/lib/types";
 import { useLocale } from "@/components/LocaleProvider";
-import { INFO_SIGNAL_KINDS, linksToMarket } from "@/lib/signals";
 import { flagFor, flagForLabel } from "@/lib/worldcup";
 import { fmtUsd } from "@/lib/format";
 
 const DEFAULT_EVENT = "world-cup-winner";
 
-type Row = { market: Market; signalCount: number };
-
 export function MarketList({
   events,
-  signals,
   selectedSlug,
   onSelect,
 }: {
   events: MarketEvent[];
-  signals: Signal[];
   selectedSlug: string | null;
   onSelect: (slug: string) => void;
 }) {
@@ -26,23 +21,18 @@ export function MarketList({
   const [query, setQuery] = useState("");
   const [eventFilter, setEventFilter] = useState<string>(DEFAULT_EVENT);
 
-  const rows = useMemo<Row[]>(() => {
-    const all: Row[] = [];
+  const rows = useMemo(() => {
+    const all: Market[] = [];
     for (const ev of events) {
       if (eventFilter !== "all" && ev.slug !== eventFilter) continue;
-      for (const m of ev.markets) {
-        const linked = signals.filter(
-          (s) => INFO_SIGNAL_KINDS.includes(s.kind) && linksToMarket(s, m),
-        );
-        all.push({ market: m, signalCount: linked.length });
-      }
+      all.push(...ev.markets);
     }
     const q = query.trim().toLowerCase();
     const filtered = q
-      ? all.filter((r) => r.market.label.toLowerCase().includes(q) || r.market.eventTitle.toLowerCase().includes(q))
+      ? all.filter((m) => m.label.toLowerCase().includes(q) || m.eventTitle.toLowerCase().includes(q))
       : all;
-    return filtered.sort((a, b) => b.market.yesPrice - a.market.yesPrice);
-  }, [events, signals, query, eventFilter]);
+    return filtered.sort((a, b) => b.yesPrice - a.yesPrice);
+  }, [events, query, eventFilter]);
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -71,7 +61,7 @@ export function MarketList({
         {rows.length === 0 && (
           <div className="py-8 text-center text-[10px] text-subtle">{t.marketList.noMarkets}</div>
         )}
-        {rows.map(({ market: m, signalCount }) => {
+        {rows.map((m) => {
           const active = m.slug === selectedSlug;
           const pct = Math.round(m.yesPrice * 100);
           return (
@@ -92,11 +82,6 @@ export function MarketList({
                   {m.eventTitle} · {fmtUsd(m.volume)}
                 </div>
               </div>
-              {signalCount > 0 && (
-                <span className="shrink-0 text-[8px] px-1 py-0.5 rounded-sm border border-accent/40 text-accent">
-                  {signalCount}
-                </span>
-              )}
               <span className="shrink-0 text-[12px] font-semibold tabular-nums w-9 text-right text-text">
                 {pct}%
               </span>

@@ -7,6 +7,7 @@ import { INFO_SIGNAL_KINDS } from "@/lib/signals";
 import { localizedKindMeta, toneColor } from "@/lib/i18n";
 import { flagFor, flagForLabel } from "@/lib/worldcup";
 import { fmtUsd, fmtPp, timeAgo } from "@/lib/format";
+import { localizedSignalContext } from "@/lib/signal-context";
 
 const GROUP_DEFS: { key: "availability" | "schedule" | "conditions" | "news"; kinds: SignalKind[] }[] = [
   { key: "availability", kinds: ["injury", "suspension", "lineup", "card_watch"] },
@@ -18,8 +19,9 @@ const GROUP_DEFS: { key: "availability" | "schedule" | "conditions" | "news"; ki
 function SignalRow({ s }: { s: Signal }) {
   const { locale, t } = useLocale();
   const meta = localizedKindMeta(locale, s.kind);
-  const primary = s.context ?? s.headline;
-  const secondary = s.context ? s.headline : s.detail;
+  const digest = localizedSignalContext(s, locale);
+  const primary = digest ?? s.headline;
+  const secondary = digest ? s.headline : s.detail;
   return (
     <a
       href={s.url}

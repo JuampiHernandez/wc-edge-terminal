@@ -4,8 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Signal, SignalKind } from "@/lib/types";
 import { useLocale } from "@/components/LocaleProvider";
 import { KIND_ORDER, localizedKindMeta, toneColor } from "@/lib/i18n";
+import { rankFeedSignals } from "@/lib/signals";
 import { flagFor } from "@/lib/worldcup";
 import { timeAgo } from "@/lib/format";
+import { localizedSignalContext } from "@/lib/signal-context";
 
 export function SignalFeed({
   signals,
@@ -25,13 +27,13 @@ export function SignalFeed({
   }, [signals]);
 
   const filtered = useMemo(() => {
-    return signals
-      .filter((s) => {
-        const kindOk = active === "all" || s.kind === active;
-        const sevOk = s.severity >= minSev;
-        return kindOk && sevOk;
-      })
-      .slice(0, 120);
+    const base = signals.filter((s) => {
+      const kindOk = active === "all" || s.kind === active;
+      const sevOk = s.severity >= minSev;
+      return kindOk && sevOk;
+    });
+    if (active === "all") return rankFeedSignals(base, 120);
+    return base.sort((a, b) => b.t - a.t || b.severity - a.severity).slice(0, 120);
   }, [signals, active, minSev]);
 
   function pickKind(k: SignalKind | "all") {
@@ -106,6 +108,8 @@ export function SignalFeed({
           filtered.map((s) => {
             const meta = localizedKindMeta(locale, s.kind);
             const team = s.entities.teams?.[0];
+            const digest = localizedSignalContext(s, locale);
+            const primary = digest ?? s.headline;
             return (
               <button
                 key={s.id}
@@ -131,7 +135,10 @@ export function SignalFeed({
                       </span>
                     )}
                   </div>
-                  <div className="text-[11px] text-text leading-snug">{s.headline}</div>
+                  <div className="text-[11px] text-text leading-snug">{primary}</div>
+                  {digest && s.headline !== primary && (
+                    <div className="text-[9px] text-subtle truncate mt-0.5">{s.headline}</div>
+                  )}
                   <div className="flex items-center gap-2 text-[8px] text-subtle mt-0.5">
                     <span>{s.source}</span>
                     <span>·</span>

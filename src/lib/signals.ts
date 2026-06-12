@@ -65,3 +65,34 @@ export function linksToMarket(sig: Signal, market: Market): boolean {
   }
   return false;
 }
+
+const FEED_KIND_CAP = 30;
+
+/** Balance the live feed so fixture fatigue timestamps don't bury news entirely. */
+export function rankFeedSignals(signals: Signal[], limit = 120): Signal[] {
+  const sorted = [...signals].sort((a, b) => b.t - a.t || b.severity - a.severity);
+  const picked: Signal[] = [];
+  const kindCounts = new Map<SignalKind, number>();
+  const seen = new Set<string>();
+
+  for (const s of sorted) {
+    const n = kindCounts.get(s.kind) ?? 0;
+    if (n >= FEED_KIND_CAP) continue;
+    if (seen.has(s.id)) continue;
+    seen.add(s.id);
+    kindCounts.set(s.kind, n + 1);
+    picked.push(s);
+    if (picked.length >= limit) break;
+  }
+
+  if (picked.length < limit) {
+    for (const s of sorted) {
+      if (seen.has(s.id)) continue;
+      seen.add(s.id);
+      picked.push(s);
+      if (picked.length >= limit) break;
+    }
+  }
+
+  return picked.sort((a, b) => b.t - a.t || b.severity - a.severity);
+}

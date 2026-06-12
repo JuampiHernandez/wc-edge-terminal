@@ -16,49 +16,14 @@ import { hashId, rawToSignal } from "./news-build";
 import { fetchApiNewsSignals } from "./news-apis";
 import { attachCachedNewsContexts } from "./news-enrichment";
 import { resolveTeam } from "./worldcup";
-
-type RssFeed = {
-  id: string;
-  source: string;
-  url: string;
-  limit: number;
-  /** Feed is already scoped (WC tag or single nation) — skip broad relevance filter. */
-  scoped?: boolean;
-  /** Auto-tag this nation on every item from the feed. */
-  teamCode?: string;
-};
-
-export const NEWS_FEEDS: RssFeed[] = [
-  // — existing —
-  { id: "espn-soccer", source: "ESPN", url: "https://www.espn.com/espn/rss/soccer/news", limit: 20 },
-  { id: "bbc-football", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/rss.xml", limit: 18 },
-  { id: "guardian-wc", source: "Guardian", url: "https://www.theguardian.com/football/world-cup-2026/rss", limit: 18, scoped: true },
-  { id: "marca-futbol", source: "Marca", url: "https://www.marca.com/rss/futbol.xml", limit: 16 },
-  // — expanded —
-  { id: "guardian-football", source: "Guardian", url: "https://www.theguardian.com/football/rss", limit: 16 },
-  { id: "sky-football", source: "Sky Sports", url: "https://www.skysports.com/rss/12040", limit: 18 },
-  { id: "fourfourtwo", source: "FourFourTwo", url: "https://www.fourfourtwo.com/feeds/all", limit: 14 },
-  { id: "independent-football", source: "Independent", url: "https://www.independent.co.uk/sport/football/rss", limit: 14 },
-  { id: "cbs-soccer", source: "CBS Sports", url: "https://www.cbssports.com/rss/headlines/soccer/", limit: 14 },
-  { id: "sportsnet", source: "Sportsnet", url: "https://www.sportsnet.ca/feed/", limit: 12 },
-  // — per-nation BBC feeds (host nations + favorites) —
-  { id: "bbc-usa", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/usa/rss.xml", limit: 10, scoped: true, teamCode: "USA" },
-  { id: "bbc-mexico", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/mexico/rss.xml", limit: 10, scoped: true, teamCode: "MEX" },
-  { id: "bbc-england", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/england/rss.xml", limit: 10, scoped: true, teamCode: "ENG" },
-  { id: "bbc-france", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/france/rss.xml", limit: 10, scoped: true, teamCode: "FRA" },
-  { id: "bbc-germany", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/germany/rss.xml", limit: 10, scoped: true, teamCode: "GER" },
-  { id: "bbc-spain", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/spain/rss.xml", limit: 10, scoped: true, teamCode: "ESP" },
-  { id: "bbc-brazil", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/brazil/rss.xml", limit: 10, scoped: true, teamCode: "BRA" },
-  { id: "bbc-argentina", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/argentina/rss.xml", limit: 10, scoped: true, teamCode: "ARG" },
-  { id: "bbc-netherlands", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/netherlands/rss.xml", limit: 10, scoped: true, teamCode: "NED" },
-  { id: "bbc-portugal", source: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/teams/portugal/rss.xml", limit: 10, scoped: true, teamCode: "POR" },
-];
+import { NEWS_FEEDS, type RssFeed } from "./news-feeds";
 
 const UA = "WC-Edge-Terminal/1.0 (RSS reader)";
-const GLOBAL_CAP = 120;
+const GLOBAL_CAP = 1200;
+const TAGGED_CAP = 1000;
 const FEED_TIMEOUT_MS = 8_000;
-const FEED_BATCH = 6;
-const NATION_FEED_BATCH = 4;
+const FEED_BATCH = 8;
+const NATION_FEED_BATCH = 12;
 const SNAPSHOT_FILE = path.join(process.cwd(), ".data", "news-signals.json");
 const SNAPSHOT_TTL_MS = 6 * 60 * 60_000;
 
@@ -143,7 +108,11 @@ function isFresh(t: number): boolean {
   return Date.now() - t <= NEWS_MAX_AGE_MS;
 }
 
-async function fetchFeed(feed: RssFeed, index: RosterIndex): Promise<Signal[]> {
+async function fetchFeed(
+  feed: RssFeed,
+  index: RosterIndex,
+  maxAgeMs = NEWS_MAX_AGE_MS,
+): Promise<Signal[]> {
   const timeout = feed.teamCode ? 15_000 : FEED_TIMEOUT_MS;
   const res = await fetchWithTimeout(
     feed.url,
@@ -155,7 +124,7 @@ async function fetchFeed(feed: RssFeed, index: RosterIndex): Promise<Signal[]> {
   );
   if (!res.ok) throw new Error(`${feed.id}: HTTP ${res.status}`);
   const xml = await res.text();
-  const cutoff = Date.now() - NEWS_MAX_AGE_MS;
+  const cutoff = Date.now() - maxAgeMs;
 
   return parseRss(xml)
     .slice(0, feed.limit)
@@ -252,9 +221,11 @@ export async function fetchNewsSignals(): Promise<NewsSignalsResult> {
     // let high-volume untagged wires (GDELT/Currents/…) push them past the cap.
     const tagged = deduped.filter((s) => (s.entities.teams?.length ?? 0) > 0);
     const untagged = deduped.filter((s) => (s.entities.teams?.length ?? 0) === 0);
-    const signals = await attachCachedNewsContexts([...tagged.slice(0, GLOBAL_CAP), ...untagged]
-      .slice(0, GLOBAL_CAP)
-      .sort((a, b) => b.t - a.t));
+    const taggedSlice = tagged.slice(0, TAGGED_CAP);
+    const untaggedSlice = untagged.slice(0, Math.max(0, GLOBAL_CAP - taggedSlice.length));
+    const signals = await attachCachedNewsContexts(
+      [...taggedSlice, ...untaggedSlice].sort((a, b) => b.t - a.t),
+    );
 
     const rosterNote =
       index.playerCount > 0
@@ -275,6 +246,24 @@ export async function fetchNewsSignals(): Promise<NewsSignalsResult> {
     console.error("[news] fetchNewsSignals failed:", e);
     return { signals: [], ok: [], failed: ["all"], apiFailed: ["all"] };
   }
+}
+
+/** Nation-scoped RSS (BBC + Guardian team pages) for deep research. */
+export async function fetchTeamRssSignals(
+  teamCode: string,
+  index: RosterIndex,
+  maxAgeMs = NEWS_MAX_AGE_MS,
+): Promise<Signal[]> {
+  const feeds = NEWS_FEEDS.filter((f) => f.teamCode === teamCode);
+  const signals: Signal[] = [];
+  for (const feed of feeds) {
+    try {
+      signals.push(...(await fetchFeed(feed, index, maxAgeMs)));
+    } catch (e) {
+      console.warn(`[news] ${feed.id}:`, e);
+    }
+  }
+  return signals;
 }
 
 export { resolveTeam };

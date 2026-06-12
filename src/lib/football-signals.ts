@@ -10,7 +10,27 @@ import {
 } from "./football-data";
 import { fetchNationalSquad, fetchTeamInjuries, resolveNationalTeamId } from "./api-football";
 import { getCachedSquads } from "./roster";
-import { nationName } from "./teams-list";
+import { nationName, WC_NATIONS } from "./teams-list";
+
+/** Top nations — injury lookup even when no fixture is imminent. */
+const INJURY_PRIORITY_CODES = [
+  "ESP",
+  "FRA",
+  "ENG",
+  "GER",
+  "BRA",
+  "ARG",
+  "POR",
+  "NED",
+  "BEL",
+  "COL",
+  "MEX",
+  "USA",
+  "ITA",
+  "URU",
+  "CRO",
+  "JPN",
+] as const;
 
 function fmtDate(iso: string): string {
   const d = new Date(iso);
@@ -195,25 +215,38 @@ export async function fetchFootballSignals(): Promise<{
   }
 
   // API-Football injuries (free plan: 2022–2024 seasons — best-effort for near-term squads).
-  if (process.env.API_FOOTBALL_KEY && teamIds.size > 0) {
+  if (process.env.API_FOOTBALL_KEY) {
+    const injuryTargets = new Map<string, string>();
+    for (const [, meta] of teamIds.entries()) {
+      injuryTargets.set(meta.code, meta.name);
+    }
+    for (const code of INJURY_PRIORITY_CODES) {
+      if (!injuryTargets.has(code)) injuryTargets.set(code, nationName(code));
+    }
+    for (const nation of WC_NATIONS) {
+      if (cachedSquads[nation.code]?.length && !injuryTargets.has(nation.code)) {
+        injuryTargets.set(nation.code, nation.name);
+      }
+    }
+
     let injCount = 0;
-    for (const [, meta] of [...teamIds.entries()].slice(0, 2)) {
+    for (const [code, name] of [...injuryTargets.entries()].slice(0, 16)) {
       try {
-        const afId = await resolveNationalTeamId(meta.name);
+        const afId = await resolveNationalTeamId(name);
         if (!afId) continue;
         const injuries = await fetchTeamInjuries(afId, 2024);
         if (injuries.length > 0) {
-          signals.push(...injurySignals(meta.name, meta.code, injuries));
+          signals.push(...injurySignals(name, code, injuries));
           injCount += injuries.length;
         }
-        if (!signals.some((s) => s.id.startsWith(`squad_${meta.code}_`))) {
+        if (!signals.some((s) => s.id.startsWith(`squad_${code}_`))) {
           const afSquad = await fetchNationalSquad(afId);
           if (afSquad.length > 0) {
-            signals.push(squadSignal(meta.name, meta.code, afSquad, "API-Football"));
+            signals.push(squadSignal(name, code, afSquad, "API-Football"));
           }
         }
       } catch (e) {
-        console.warn(`[football-signals] api-football ${meta.code}:`, e);
+        console.warn(`[football-signals] api-football ${code}:`, e);
       }
     }
     if (injCount > 0) notes.push(`${injCount} injuries`);

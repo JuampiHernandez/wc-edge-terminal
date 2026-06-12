@@ -47,7 +47,10 @@ export async function GET(req: Request) {
     try {
       const news = await fetchNewsSignals();
       newsSignals = news.signals;
-      const enrichLimit = Math.min(200, Math.max(1, Number(url.searchParams.get("enrich")) || Number(process.env.AI_NEWS_ENRICH_LIMIT) || 120));
+      const enrichLimit = Math.min(
+        1200,
+        Math.max(1, Number(url.searchParams.get("enrich")) || Number(process.env.AI_NEWS_ENRICH_LIMIT) || 1200),
+      );
       enrichment = await enrichNewsContexts(news.signals, enrichLimit);
     } catch (e) {
       console.warn("[cron/digest] news enrichment failed:", e);

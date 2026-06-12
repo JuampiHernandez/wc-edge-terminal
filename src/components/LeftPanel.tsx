@@ -1,19 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import type { MarketEvent, Signal } from "@/lib/types";
+import type { MarketEvent } from "@/lib/types";
 import { useLocale } from "@/components/LocaleProvider";
 import { MarketList } from "./MarketList";
 import { TeamMarketList } from "./TeamMarketList";
 
 export function LeftPanel({
   events,
-  signals,
   selectedSlug,
   onSelect,
 }: {
   events: MarketEvent[];
-  signals: Signal[];
   selectedSlug: string | null;
   onSelect: (slug: string) => void;
 }) {
@@ -40,12 +38,7 @@ export function LeftPanel({
       </div>
       <div className="flex-1 min-h-0 overflow-hidden">
         {tab === "markets" ? (
-          <MarketList
-            events={events}
-            signals={signals}
-            selectedSlug={selectedSlug}
-            onSelect={onSelect}
-          />
+          <MarketList events={events} selectedSlug={selectedSlug} onSelect={onSelect} />
         ) : (
           <TeamMarketList events={events} selectedSlug={selectedSlug} onSelect={onSelect} />
         )}

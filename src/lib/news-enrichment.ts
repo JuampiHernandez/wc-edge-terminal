@@ -42,7 +42,7 @@ async function writeCache(cache: CacheFile): Promise<void> {
     await fs.mkdir(path.dirname(FILE), { recursive: true });
     await fs.writeFile(FILE, JSON.stringify(cache, null, 2));
   } catch {
-    // .data is best-effort on serverless; Vercel deployments should use a DB for durable cache.
+    // .data is best-effort on serverless; Supabase is the durable store.
   }
 }
 
@@ -72,12 +72,18 @@ export function hasNewsEnrichmentConfig(): boolean {
   return configuredClient() !== null;
 }
 
-function candidates(signals: Signal[]): Signal[] {
-  return signals.filter(
-    (s) =>
-      s.kind === "news" &&
-      !s.context,
-  );
+/** Headlines we send to the LLM for a short summary title. */
+export function enrichmentCandidates(signals: Signal[], force = false): Signal[] {
+  if (force) return signals.filter((s) => s.kind === "news");
+  return signals.filter((s) => s.kind === "news" && !s.context && !s.contextEn);
+}
+
+function cleanSummary(text: string): string {
+  let s = text.replace(/^["“]|["”]$/g, "").trim();
+  s = s.replace(/^the headline suggests that\s+/i, "");
+  s = s.replace(/^the report that\s+/i, "");
+  s = s.replace(/^this headline suggests that\s+/i, "");
+  return s;
 }
 
 async function interpret(signal: Signal): Promise<string | null> {
@@ -92,22 +98,21 @@ async function interpret(signal: Signal): Promise<string | null> {
     },
     body: JSON.stringify({
       model: client.model,
-      temperature: 0.2,
-      max_tokens: 90,
+      temperature: 0.1,
+      max_tokens: 48,
       messages: [
         {
           role: "system",
           content:
-            "Eres analista de mercados predictivos del Mundial. Explica en español, en una frase breve, por qué esta noticia puede afectar a las selecciones mencionadas o al mercado general del Mundial. No inventes datos fuera del titular.",
+            "You write short news headline summaries for a sports terminal. " +
+            "Given a headline, output ONE concise headline-style line (max 12 words) stating what happened. " +
+            "Name the players or team when relevant. " +
+            "No market analysis, no betting odds, no speculation, no phrases like 'the headline suggests'. " +
+            "Do not invent facts beyond the headline.",
         },
         {
           role: "user",
-          content: JSON.stringify({
-            title: signal.headline,
-            teams: signal.entities.teams ?? [],
-            players: signal.entities.players ?? [],
-            kind: signal.kind,
-          }),
+          content: signal.headline,
         },
       ],
     }),
@@ -120,7 +125,11 @@ async function interpret(signal: Signal): Promise<string | null> {
 
   const data = (await res.json()) as ChatResponse;
   const text = data.choices?.[0]?.message?.content?.trim();
-  return text ? text.replace(/^["“]|["”]$/g, "") : null;
+  return text ? cleanSummary(text) : null;
+}
+
+function withContext(signal: Signal, context: string): Signal {
+  return { ...signal, context, contextEn: context };
 }
 
 export async function attachCachedNewsContexts(signals: Signal[]): Promise<Signal[]> {
@@ -129,25 +138,41 @@ export async function attachCachedNewsContexts(signals: Signal[]): Promise<Signa
   return signals.map((s) => {
     const cached = cache.items[cacheKey(s)];
     if (!cached || cached.createdAt < cutoff) return s;
-    return { ...s, context: cached.context };
+    return withContext(s, cached.context);
   });
 }
 
+function defaultEnrichLimit(): number {
+  const fromEnv = Number(process.env.AI_NEWS_ENRICH_LIMIT);
+  if (Number.isFinite(fromEnv) && fromEnv > 0) return Math.min(1200, fromEnv);
+  return 1200;
+}
+
+export type EnrichNewsResult = {
+  attempted: number;
+  enriched: number;
+  skipped: boolean;
+  signals: Signal[];
+};
+
+/** LLM summary — one short headline per article. */
 export async function enrichNewsContexts(
   signals: Signal[],
-  limit = 120,
-): Promise<{ attempted: number; enriched: number; skipped: boolean }> {
+  limit = defaultEnrichLimit(),
+  options?: { force?: boolean },
+): Promise<EnrichNewsResult> {
   const client = configuredClient();
-  if (!client) return { attempted: 0, enriched: 0, skipped: true };
+  if (!client) return { attempted: 0, enriched: 0, skipped: true, signals };
 
+  const force = options?.force ?? false;
   const cache = await readCache();
   const cutoff = Date.now() - NEWS_MAX_AGE_MS;
   for (const [key, item] of Object.entries(cache.items)) {
     if (item.createdAt < cutoff) delete cache.items[key];
   }
 
-  const todo = candidates(signals)
-    .filter((s) => !cache.items[cacheKey(s)])
+  const todo = enrichmentCandidates(signals, force)
+    .filter((s) => force || !cache.items[cacheKey(s)])
     .slice(0, limit);
 
   let enriched = 0;
@@ -168,5 +193,12 @@ export async function enrichNewsContexts(
 
   cache.generatedAt = Date.now();
   await writeCache(cache);
-  return { attempted: todo.length, enriched, skipped: false };
+
+  const withContextSignals = signals.map((s) => {
+    const cached = cache.items[cacheKey(s)];
+    if (!cached || cached.createdAt < cutoff) return s;
+    return withContext(s, cached.context);
+  });
+
+  return { attempted: todo.length, enriched, skipped: false, signals: withContextSignals };
 }

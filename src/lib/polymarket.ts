@@ -9,6 +9,7 @@ import { resolveTeam } from "./worldcup";
 
 export const GAMMA = "https://gamma-api.polymarket.com";
 export const DATA = "https://data-api.polymarket.com";
+const UA = "WC-Edge-Terminal/1.0 (markets reader)";
 
 type RawMarket = {
   id: string;
@@ -90,8 +91,8 @@ function toMarket(raw: RawMarket, ev: RawEvent): Market | null {
 /** Fetch one event (with its scoped markets) by slug. */
 export async function fetchEvent(slug: string): Promise<MarketEvent | null> {
   const res = await fetch(`${GAMMA}/events?slug=${encodeURIComponent(slug)}`, {
-    headers: { Accept: "application/json" },
-    next: { revalidate: 30 },
+    headers: { Accept: "application/json", "User-Agent": UA },
+    cache: "no-store",
   });
   if (!res.ok) return null;
   const arr = (await res.json()) as RawEvent[];
@@ -141,7 +142,10 @@ type RawTrade = {
  */
 export async function fetchFlow(filterAmount = 1000, limit = 100): Promise<FlowEntry[]> {
   const url = `${DATA}/trades?takerOnly=true&limit=${limit}&filterType=CASH&filterAmount=${filterAmount}`;
-  const res = await fetch(url, { headers: { Accept: "application/json" }, next: { revalidate: 20 } });
+  const res = await fetch(url, {
+    headers: { Accept: "application/json", "User-Agent": UA },
+    cache: "no-store",
+  });
   if (!res.ok) return [];
   const trades = (await res.json()) as RawTrade[];
   if (!Array.isArray(trades)) return [];

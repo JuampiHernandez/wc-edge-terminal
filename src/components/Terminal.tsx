@@ -52,7 +52,6 @@ export function Terminal() {
         <aside className="terminal-col terminal-col-left hidden lg:flex">
           <LeftPanel
             events={data.events}
-            signals={data.signals}
             selectedSlug={effectiveSelectedSlug}
             onSelect={setSelectedSlug}
           />

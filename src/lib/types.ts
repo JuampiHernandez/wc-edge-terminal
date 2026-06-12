@@ -35,8 +35,10 @@ export type Signal = {
   /** 0–1 — official source > beat reporter > rumor. */
   confidence: number;
   headline: string;
-  /** LLM-written market context, when cached from cron enrichment. */
+  /** LLM market-impact summary (English, generated once at cron). */
   context?: string;
+  /** Alias for `context` when mapped from `context_en` column. */
+  contextEn?: string;
   detail?: string;
   source: string;
   url?: string;

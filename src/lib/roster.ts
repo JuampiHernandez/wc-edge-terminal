@@ -285,6 +285,59 @@ export async function refreshRostersBatch(maxTeams = 10): Promise<StoredRoster> 
   return stored;
 }
 
+/** Refresh squads for specific nations only (for nation-scoped news research). */
+export async function refreshRostersForCodes(codes: string[]): Promise<StoredRoster> {
+  const stored: StoredRoster = (await readStored()) ?? {
+    generatedAt: Date.now(),
+    teams: {},
+    teamUpdatedAt: {},
+  };
+  stored.teamUpdatedAt ??= {};
+
+  const pick = WC_NATIONS.filter((n) => codes.includes(n.code));
+  if (pick.length === 0) return stored;
+
+  const now = Date.now();
+  let fdTeams: Awaited<ReturnType<typeof fetchWcTeams>> = [];
+  try {
+    fdTeams = await fetchWcTeams();
+  } catch (e) {
+    console.warn("[roster] fetchWcTeams failed:", e);
+  }
+
+  for (const n of pick) {
+    let players: string[] = [];
+    const fd = fdTeams.find((t) => tlaToCode(t.tla) === n.code);
+    if (fd) {
+      const squad = await fetchTeamSquad(fd.id);
+      if (squad.length > 0) {
+        players = squad.map((p) => p.name).slice(0, MAX_PLAYERS_PER_TEAM);
+      }
+    }
+    if (players.length === 0 && process.env.API_FOOTBALL_KEY) {
+      await sleep(400);
+      const afId = await resolveNationalTeamId(nationName(n.code));
+      if (afId) {
+        const squad = await fetchNationalSquad(afId);
+        if (squad.length > 0) {
+          players = squad.map((p) => p.name).slice(0, MAX_PLAYERS_PER_TEAM);
+        }
+      }
+    }
+    if (players.length > 0) {
+      stored.teams[n.code] = players;
+      stored.teamUpdatedAt![n.code] = now;
+    }
+    await sleep(400);
+  }
+
+  stored.generatedAt = now;
+  await writeStored(stored);
+  squadCacheWarm = stored.teams;
+  mem = { at: Date.now(), index: buildIndex(stored) };
+  return stored;
+}
+
 /** Fetch squads for all WC nations from available APIs. */
 export async function refreshRosters(): Promise<StoredRoster> {
   const teams: Record<string, string[]> = {};
@@ -424,6 +477,15 @@ export async function getCachedSquads(): Promise<Record<string, string[]>> {
     return teams;
   } catch (e) {
     console.warn("[roster] squad cache read failed:", e);
+    try {
+      const stored = await readStored();
+      if (stored?.teams && Object.keys(stored.teams).length > 0) {
+        squadCacheWarm = stored.teams;
+        return stored.teams;
+      }
+    } catch {
+      /* ignore */
+    }
     return {};
   }
 }
