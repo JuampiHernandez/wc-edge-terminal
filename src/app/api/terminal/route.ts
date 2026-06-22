@@ -28,7 +28,16 @@ type TerminalPayload = {
   generatedAt: number;
 };
 
-const TERMINAL_TTL_MS = 30_000;
+// How long a built payload is reused before the heavy multi-source aggregation
+// runs again. This is the main driver of Fluid Active CPU: every rebuild fans out
+// to Polymarket, news RSS/APIs, weather, football-data and roster processing.
+// Keep it well above the client poll interval so most requests hit the cache.
+const TERMINAL_TTL_MS = 120_000;
+// Matching CDN window so concurrent visitors are served from the edge without
+// ever invoking the function. SWR lets the edge serve slightly stale data while
+// a single background revalidation refreshes it.
+const CDN_S_MAXAGE = 120;
+const CDN_SWR = 600;
 let terminalCache: { at: number; payload: TerminalPayload } | null = null;
 let terminalInFlight: Promise<TerminalPayload> | null = null;
 
@@ -194,6 +203,8 @@ async function getTerminalPayload(): Promise<TerminalPayload> {
 export async function GET() {
   const payload = await getTerminalPayload();
   return NextResponse.json(payload, {
-    headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" },
+    headers: {
+      "Cache-Control": `public, s-maxage=${CDN_S_MAXAGE}, stale-while-revalidate=${CDN_SWR}`,
+    },
   });
 }

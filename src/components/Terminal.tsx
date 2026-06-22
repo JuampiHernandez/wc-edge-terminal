@@ -15,7 +15,7 @@ import { MispricingBoard } from "./MispricingBoard";
 type Selection = { kind: "market"; slug: string } | { kind: "match"; id: string };
 
 export function Terminal() {
-  const { data, loading, error } = useTerminal(30_000);
+  const { data, loading, error } = useTerminal();
   const [selection, setSelection] = useState<Selection | null>(null);
 
   const markets = useMemo<Market[]>(

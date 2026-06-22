@@ -30,5 +30,12 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // Skip the hot, public, cacheable endpoints entirely. Running middleware on
+  // them adds an Edge invocation per request and can attach Set-Cookie, which
+  // makes the responses uncacheable at the CDN. Locale/session handling isn't
+  // needed for these, so excluding them lets the edge serve cached responses
+  // without ever invoking a function.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|api/terminal|api/calendar|api/cron|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };
