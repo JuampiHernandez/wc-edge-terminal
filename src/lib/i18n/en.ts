@@ -2,7 +2,7 @@ import type { SignalKind } from "@/lib/types";
 
 export type Messages = {
   meta: { title: string; description: string };
-  header: { calendar: string; signUp: string; signOut: string; live: string; offline: string };
+  header: { calendar: string; calendarHint: string; signUp: string; signOut: string; live: string; offline: string };
   theme: { dark: string; light: string; switchToDark: string; switchToLight: string };
   locale: { en: string; es: string; switchToEn: string; switchToEs: string };
   leftPanel: { matchday: string; markets: string; teams: string };
@@ -95,6 +95,21 @@ export type Messages = {
     teams: string;
     backToTerminal: string;
   };
+  showcase: {
+    hint: string;
+    aria: string;
+    viewPicker: string;
+    views: {
+      agenda: string;
+      carousel: string;
+      radial: string;
+      classic: string;
+    };
+    pickCountry: string;
+    newsSubtitle: string;
+    loading: string;
+    noNews: string;
+  };
   time: { now: string };
   signalKinds: Record<SignalKind, string>;
 };
@@ -103,10 +118,11 @@ export const en: Messages = {
   meta: {
     title: "World Cup Terminal",
     description:
-      "Live markets. Smart signals. Every match. One place. — injuries, lineups, weather, whale flow and price moves, linked to every Polymarket market.",
+      "Interactive knockout bracket preview. Tap a nation for official news. Add confirmed Round-of-32 fixtures to your calendar.",
   },
   header: {
-    calendar: "Calendar",
+    calendar: "Round of 32",
+    calendarHint: "Add all confirmed Round-of-32 matches to your calendar",
     signUp: "Sign up",
     signOut: "Sign out",
     live: "live",
@@ -233,6 +249,21 @@ export const en: Messages = {
     matches: "matches",
     teams: "teams",
     backToTerminal: "← back to terminal",
+  },
+  showcase: {
+    hint: "Round of 32 · tap a team for news · tap again to pick winner",
+    aria: "World Cup Round of 32 bracket",
+    viewPicker: "Layout style",
+    views: {
+      agenda: "Agenda",
+      carousel: "Carousel",
+      radial: "Radial",
+      classic: "Classic",
+    },
+    pickCountry: "Tap a classified nation to read official news below",
+    newsSubtitle: "Official sources · BBC, Guardian, ESPN & more",
+    loading: "Loading news…",
+    noNews: "No official news for this nation yet",
   },
   time: {
     now: "now",

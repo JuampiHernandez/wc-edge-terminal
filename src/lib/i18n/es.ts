@@ -4,10 +4,11 @@ export const es: Messages = {
   meta: {
     title: "World Cup Terminal",
     description:
-      "Mercados en vivo. Señales inteligentes. Todos los partidos. Un solo lugar. — lesiones, alineaciones, clima, flujo de ballenas y movimientos de precio, vinculados a cada mercado de Polymarket.",
+      "Vista previa interactiva del cuadro eliminatorio. Tocá una selección para noticias oficiales. Agregá los 16avos confirmados a tu calendario.",
   },
   header: {
-    calendar: "Calendario",
+    calendar: "16avos",
+    calendarHint: "Agregar todos los partidos confirmados de 16avos a tu calendario",
     signUp: "Registrarse",
     signOut: "Salir",
     live: "en vivo",
@@ -134,6 +135,21 @@ export const es: Messages = {
     matches: "partidos",
     teams: "equipos",
     backToTerminal: "← volver al terminal",
+  },
+  showcase: {
+    hint: "16avos · tocá un equipo para noticias · tocá de nuevo para elegir ganador",
+    aria: "Cuadro de 16avos del Mundial",
+    viewPicker: "Estilo de vista",
+    views: {
+      agenda: "Agenda",
+      carousel: "Carrusel",
+      radial: "Radial",
+      classic: "Clásico",
+    },
+    pickCountry: "Tocá una selección clasificada para ver noticias oficiales abajo",
+    newsSubtitle: "Fuentes oficiales · BBC, Guardian, ESPN y más",
+    loading: "Cargando noticias…",
+    noNews: "Aún no hay noticias oficiales para esta selección",
   },
   time: {
     now: "ahora",

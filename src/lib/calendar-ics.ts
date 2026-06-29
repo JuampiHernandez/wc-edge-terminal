@@ -171,6 +171,21 @@ export function fullCalendarIcs(): string {
   return readFileSync(ICS_PATH, "utf8");
 }
 
+function isConfirmedRoundOf32(e: IcsEvent): boolean {
+  if (!/Round of 32/i.test(e.description)) return false;
+  return /STATUS:CONFIRMED/i.test(e.block);
+}
+
+/** All scheduled, confirmed Round-of-32 fixtures (matches 73–88). */
+export function roundOf32CalendarIcs(): string {
+  const events = parseIcsEvents().filter(isConfirmedRoundOf32);
+  return buildIcs(
+    events,
+    `${CAL_NAME} · Round of 32`,
+    `${events.length} confirmed Round-of-32 fixtures · FIFA World Cup 2026.`,
+  );
+}
+
 const CAL_NAME = "FIFA World Cup 2026";
 
 export function filteredCalendarIcs(teamCodes: string[]): string {

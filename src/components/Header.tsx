@@ -72,10 +72,9 @@ export function Header({ live }: { live: boolean }) {
         <ThemeToggle />
 
         <a
-          href="https://worldcupterminal.xyz/calendar"
-          target="_blank"
-          rel="noopener noreferrer"
+          href="/calendar/r32"
           className="text-[10px] font-mono px-3 py-1.5 border border-border rounded-sm text-muted hover:border-accent hover:text-accent transition-colors"
+          title={t.header.calendarHint}
         >
           {t.header.calendar}
         </a>
